@@ -1,0 +1,47 @@
+[package]
+name = "new-data-upa-dashboard-api"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "new-data-upa-dashboard-api"
+path = "src/main.rs"
+
+[dependencies]
+# Framework web
+actix-web = "4.4.1"
+actix-cors = "0.7.0"
+
+# Serialização/Deserialização
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+
+# Runtime assíncrono
+tokio = { version = "1.36.0", features = ["full"] }
+
+# Banco de dados
+sqlx = { version = "0.7.3", features = ["runtime-tokio-rustls", "postgres", "uuid", "time", "json", "tls-native-tls"] }
+
+# Utilitários
+dotenv = "0.15.0"
+uuid = { version = "1.7.0", features = ["serde", "v4"] }
+validator = { version = "0.16.1", features = ["derive"] }
+async-trait = "0.1.77"
+thiserror = "1.0.57"
+jsonwebtoken = "9.2.0"
+
+# Logging
+log = "0.4.20"
+env_logger = "0.11.1"
+
+# Futures e tempo
+futures = "0.3.30"
+time = { version = "0.3.34", features = ["formatting"] }
+argon2 = { version = "0.5.3", features = ["std"] }
+derive_more = "0.99.17"
+
+
+
