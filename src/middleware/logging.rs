@@ -59,7 +59,7 @@ where
                 method,
                 path,
                 res.status().as_u16(),
-                0 // Você pode adicionar um timer se quiser medir o tempo
+                0 
             );
             Ok(res)
         })

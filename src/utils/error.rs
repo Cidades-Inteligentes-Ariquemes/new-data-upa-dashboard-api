@@ -1,4 +1,4 @@
-use actix_web::{error::ResponseError, HttpResponse};
+use actix_web::{error::ResponseError, HttpResponse, http::StatusCode};
 use derive_more::Display;
 use log::error;
 use serde_json::json;
@@ -13,30 +13,40 @@ pub enum AppError {
 
     #[display(fmt = "Unauthorized: {}", _0)]
     Unauthorized(String),
+
+    #[display(fmt = "Forbiden: {}", _0)]
+    Forbidden(String)
 }
 
 impl ResponseError for AppError {
     fn error_response(&self) -> HttpResponse {
         error!("Error occurred: {}", self);
+        
+        let (status_code, error_type) = match self {
+            AppError::InternalServerError => 
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"),
+            AppError::BadRequest(_) => 
+                (StatusCode::BAD_REQUEST, "Bad Request"),
+            AppError::Unauthorized(_) => 
+                (StatusCode::UNAUTHORIZED, "Unauthorized"),
+            AppError::Forbidden(_) => 
+                (StatusCode::FORBIDDEN, "Forbidden")
+        };
+
+        HttpResponse::build(status_code)
+            .json(json!({
+                "error": error_type,
+                "message": self.to_string(),
+                "status_code": status_code.as_u16()
+            }))
+    }
+
+    fn status_code(&self) -> StatusCode {
         match self {
-            AppError::InternalServerError => {
-                HttpResponse::InternalServerError().json(json!({
-                    "error": "Internal Server Error",
-                    "message": self.to_string()
-                }))
-            }
-            AppError::BadRequest(ref message) => {
-                HttpResponse::BadRequest().json(json!({
-                    "error": "Bad Request",
-                    "message": message
-                }))
-            }
-            AppError::Unauthorized(ref message) => {
-                HttpResponse::Unauthorized().json(json!({
-                    "error": "Unauthorized",
-                    "message": message
-                }))
-            }
+            AppError::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            AppError::Forbidden(_) => StatusCode::FORBIDDEN
         }
     }
 }

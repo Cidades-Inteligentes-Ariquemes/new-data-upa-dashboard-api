@@ -1,73 +1,85 @@
-use actix_web::{web, HttpResponse};
-use jsonwebtoken::{encode, EncodingKey, Header};
-use std::time::{SystemTime, UNIX_EPOCH};
-use log::{error, info};
-use crate::utils::error::AppError;
-use crate::domain::models::auth::{LoginDto, LoginResponse, Claims};
-use crate::infrastructure::repositories::user_repository::PgUserRepository;
-use crate::utils::config_env::Config;
-use crate::domain::repositories::user::UserRepository;
+use actix_web::web;
+use actix_web::HttpResponse;
+use crate::{
+    utils::error::AppError,
+    domain::models::auth::{LoginDto, LoginResponse},
+    infrastructure::repositories::user_repository::PgUserRepository,
+    utils::config_env::Config,
+    domain::repositories::user::UserRepository,
+    adapters::{
+        password::PasswordEncryptorPort,
+        token::TokenGeneratorPort,
+    },
+};
 
-pub async fn login(
+pub struct AuthService {
     repo: web::Data<PgUserRepository>,
     config: web::Data<Config>,
-    credentials: web::Json<LoginDto>,
-) -> Result<HttpResponse, AppError> {
-    info!("=== LOGIN INICIADO ===");
-    info!("Recebido request de login");
-    info!("Credenciais recebidas: {:?}", credentials);
-    info!("JWT Secret configurado: {}", if config.jwt_secret.is_empty() { "VAZIO" } else { "CONFIGURADO" });
+    password_encryptor: Box<dyn PasswordEncryptorPort>,
+    token_generator: Box<dyn TokenGeneratorPort>,
+}
 
-    let user = match repo.authenticate(credentials.into_inner()).await {
-        Ok(Some(user)) => {
-            info!("Usuário autenticado com sucesso: {}", user.email);
-            user
+impl AuthService {
+    pub fn new(
+        repo: web::Data<PgUserRepository>,
+        config: web::Data<Config>,
+        password_encryptor: Box<dyn PasswordEncryptorPort>,
+        token_generator: Box<dyn TokenGeneratorPort>,
+    ) -> Self {
+        Self { 
+            repo, 
+            config, 
+            password_encryptor,
+            token_generator,
         }
-        Ok(None) => {
-            info!("Credenciais inválidas");
+    }
+
+    pub async fn login(&self, credentials: LoginDto) -> Result<HttpResponse, AppError> {
+
+        // Busca o usuário
+        let user = match self.repo.find_by_email(&credentials.email).await {
+            Ok(Some(user)) => {
+                if !user.enabled {
+                    return Err(AppError::Unauthorized("User is disabled".into()));
+                }
+                user
+            },
+            Ok(None) => {
+                return Err(AppError::Unauthorized("Invalid credentials".into()));
+            },
+            Err(_) => {
+                return Err(AppError::InternalServerError);
+            }
+        };
+
+        // Verifica a senha
+        if !self.password_encryptor.verify_password(&user.password, &credentials.password)
+            .map_err(|_| {
+                AppError::InternalServerError
+            })? {
             return Err(AppError::Unauthorized("Invalid credentials".into()));
         }
-        Err(e) => {
-            error!("Erro na autenticação: {:?}", e);
-            return Err(AppError::InternalServerError);
-        }
-    };
 
-    let expiration = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as usize + 24 * 3600; // 24 horas
+        // Gera o token JWT
+        let token = self.token_generator
+            .generate_token(
+                user.id.to_string(),
+                user.profile.clone(),
+                &self.config.jwt_secret,
+            )
+            .map_err(|_| {
+                AppError::InternalServerError
+            })?;
 
-    let claims = Claims {
-        sub: user.id.to_string(),
-        exp: expiration,
-        profile: user.profile.clone(),
-    };
+        let response = LoginResponse {
+            token,
+            user_id: user.id.to_string(),
+            full_name: user.full_name,
+            email: user.email,
+            profile: user.profile,
+            allowed_applications: user.allowed_applications,
+        };
 
-    let token = match encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(config.jwt_secret.as_bytes()),
-    ) {
-        Ok(token) => {
-            info!("Token JWT gerado com sucesso");
-            token
-        }
-        Err(e) => {
-            error!("Erro ao gerar token JWT: {:?}", e);
-            return Err(AppError::InternalServerError);
-        }
-    };
-
-    let response = LoginResponse {
-        token,
-        user_id: user.id.to_string(),
-        full_name: user.full_name,
-        email: user.email,
-        profile: user.profile,
-        allowed_applications: user.allowed_applications,
-    };
-
-    info!("Login concluído com sucesso para o usuário: {}", response.email);
-    Ok(HttpResponse::Ok().json(response))
+        Ok(HttpResponse::Ok().json(response))
+    }
 }

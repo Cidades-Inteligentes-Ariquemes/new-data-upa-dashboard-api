@@ -1,79 +1,163 @@
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{web, HttpResponse};
 use uuid::Uuid;
-use crate::domain::{
-    models::user::{CreateUserDto, UpdateUserDto, UpdatePasswordDto, UserResponse},
-    repositories::user::UserRepository,
+use log::error;
+use crate::{
+    domain::{
+        models::user::{CreateUserDto, UpdatePasswordDto, UpdateUserDto, UserResponse},
+        repositories::user::UserRepository,
+    },
+    utils::response::ApiResponse,
+    AppError,
 };
 use crate::infrastructure::repositories::user_repository::PgUserRepository;
+use crate::adapters::password::PasswordEncryptorPort;
 
-pub async fn get_users(repo: web::Data<PgUserRepository>) -> impl Responder {
-    match repo.find_all().await {
-        Ok(users) => {
-            let responses: Vec<UserResponse> = users.into_iter()
-                .map(UserResponse::from)
-                .collect();
-            HttpResponse::Ok().json(responses)
-        },
-        Err(_) => HttpResponse::InternalServerError().finish(),
-    }
+pub struct UserService {
+    repo: web::Data<PgUserRepository>,
+    password_encryptor: Box<dyn PasswordEncryptorPort>,
 }
 
-pub async fn get_user_by_id(
-    repo: web::Data<PgUserRepository>,
-    id: web::Path<Uuid>,
-) -> impl Responder {
-    match repo.find_by_id(id.into_inner()).await {
-        Ok(Some(user)) => HttpResponse::Ok().json(UserResponse::from(user)),
-        Ok(None) => HttpResponse::NotFound().finish(),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+impl UserService {
+    pub fn new(repo: web::Data<PgUserRepository>, password_encryptor: Box<dyn PasswordEncryptorPort>) -> Self {
+        Self { repo, password_encryptor }
     }
-}
 
-pub async fn create_user(
-    repo: web::Data<PgUserRepository>,
-    user: web::Json<CreateUserDto>,
-) -> impl Responder {
-    match repo.create(user.into_inner()).await {
-        Ok(user) => HttpResponse::Created().json(UserResponse::from(user)),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+    pub async fn get_users(&self) -> Result<HttpResponse, AppError> {
+        match self.repo.find_all().await {
+            Ok(users) => {
+                let responses: Vec<UserResponse> = users.into_iter()
+                    .map(UserResponse::from)
+                    .collect();
+                
+                if responses.is_empty() {
+                    Ok(ApiResponse::<Vec<UserResponse>>::users_not_found().into_response())
+                } else {
+                    Ok(ApiResponse::success(responses).into_response())
+                }
+            },
+            Err(e) => {
+                error!("Error fetching users: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
     }
-}
 
-pub async fn update_user(
-    repo: web::Data<PgUserRepository>,
-    id: web::Path<Uuid>,
-    user: web::Json<UpdateUserDto>,
-) -> impl Responder {
-    match repo.update(id.into_inner(), user.into_inner()).await {
-        Ok(Some(user)) => HttpResponse::Ok().json(UserResponse::from(user)),
-        Ok(None) => HttpResponse::NotFound().finish(),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+    pub async fn get_user_by_id(&self, id: Uuid) -> Result<HttpResponse, AppError> {
+        match self.repo.find_by_id(id).await {
+            Ok(Some(user)) => Ok(ApiResponse::success(UserResponse::from(user)).into_response()),
+            Ok(None) => Ok(ApiResponse::<UserResponse>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error fetching user: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
     }
-}
 
-pub async fn update_password(
-    repo: web::Data<PgUserRepository>,
-    id: web::Path<Uuid>,
-    passwords: web::Json<UpdatePasswordDto>,
-) -> impl Responder {
-    match repo.update_password(id.into_inner(), passwords.into_inner()).await {
-        Ok(true) => HttpResponse::Ok().json(serde_json::json!({
-            "message": "Password updated successfully"
-        })),
-        Ok(false) => HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Current password is incorrect or models not found"
-        })),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+    pub async fn create_user(&self, user: CreateUserDto) -> Result<HttpResponse, AppError> {
+        // Validações de campos vazios
+        let validations = [
+            ("full_name", user.full_name.is_empty()),
+            ("email", user.email.is_empty()),
+            ("password", user.password.is_empty()),
+            ("profile", user.profile.is_empty()),
+            ("allowed_applications", user.allowed_applications.is_empty()),
+        ];
+
+        for (field_name, is_empty) in validations {
+            if is_empty {
+                return Err(AppError::BadRequest(
+                    format!("Error adding user: {} cannot be empty", field_name)
+                ));
+            }
+        }
+
+        // Verifica se o usuário já existe
+        if let Some(_) = self.repo.find_by_email(&user.email).await.unwrap() {
+            return Err(AppError::BadRequest(
+                format!("Error adding user: email '{}' already exists", user.email)
+            ));
+        }
+
+        // Validação de aplicações permitidas
+        const ALLOWED_APPS: [&str; 2] = ["xpredict", "upavision"];
+        for app in &user.allowed_applications {
+            if !ALLOWED_APPS.contains(&app.as_str()) {
+                return Err(AppError::BadRequest(
+                    format!("Error adding user: '{}' is not a valid application. Allowed values are: xpredict, upavision", app)
+                ));
+            }
+        }
+
+        // Hash da senha
+        let mut user_with_hash = user;
+        user_with_hash.password = self.password_encryptor
+            .hash_password(&user_with_hash.password)
+            .map_err(|e| {
+                error!("Error hashing password: {:?}", e);
+                AppError::InternalServerError
+            })?;
+
+        match self.repo.create(user_with_hash).await {
+            Ok(user) => Ok(ApiResponse::created(UserResponse::from(user)).into_response()),
+            Err(e) => {
+                error!("Error creating user: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
     }
-}
 
-pub async fn delete_user(
-    repo: web::Data<PgUserRepository>,
-    id: web::Path<Uuid>,
-) -> impl Responder {
-    match repo.delete(id.into_inner()).await {
-        Ok(true) => HttpResponse::NoContent().finish(),
-        Ok(false) => HttpResponse::NotFound().finish(),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+    pub async fn update_user(&self, id: Uuid, user: UpdateUserDto) -> Result<HttpResponse, AppError> {
+        match self.repo.update(id, user).await {
+            Ok(Some(user)) => Ok(ApiResponse::updated(UserResponse::from(user)).into_response()),
+            Ok(None) => Ok(ApiResponse::<UserResponse>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error updating user: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn update_password(&self, id: Uuid, passwords: UpdatePasswordDto) -> Result<HttpResponse, AppError> {
+        // Verifica a senha atual e faz o hash da nova senha
+        let current_user = match self.repo.find_by_id(id).await {
+            Ok(Some(user)) => user,
+            Ok(None) => return Ok(ApiResponse::<()>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error fetching user: {:?}", e);
+                return Err(AppError::InternalServerError);
+            }
+        };
+    
+        // Verifica senha atual
+        if !self.password_encryptor.verify_password(&current_user.password, &passwords.current_password)
+            .map_err(|_| AppError::InternalServerError)? {
+            return Err(AppError::BadRequest("Current password is incorrect".into()));
+        }
+    
+        // Hash da nova senha
+        let new_password_hash = self.password_encryptor
+            .hash_password(&passwords.new_password)
+            .map_err(|_| AppError::InternalServerError)?;
+    
+        // Atualiza a senha
+        match self.repo.update_password(id, new_password_hash).await {
+            Ok(true) => Ok(ApiResponse::success("Password updated successfully").into_response()),
+            Ok(false) => Ok(ApiResponse::<()>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error updating password: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn delete_user(&self, id: Uuid) -> Result<HttpResponse, AppError> {
+        match self.repo.delete(id).await {
+            Ok(true) => Ok(ApiResponse::<()>::deleted().into_response()),
+            Ok(false) => Ok(ApiResponse::<()>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error deleting user: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
     }
 }

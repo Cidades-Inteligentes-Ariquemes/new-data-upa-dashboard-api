@@ -19,7 +19,7 @@ pub struct CreateUserDto {
     pub email: String,
     pub password: String,
     pub profile: String,
-    pub allowed_applications: Vec<String>,
+    pub allowed_applications: Vec<String>
 }
 
 #[derive(Debug, Deserialize)]
