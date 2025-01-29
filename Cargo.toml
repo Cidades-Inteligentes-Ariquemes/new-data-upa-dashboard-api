@@ -43,5 +43,8 @@ time = { version = "0.3.34", features = ["formatting"] }
 argon2 = { version = "0.5.3", features = ["std"] }
 derive_more = "0.99.17"
 
+# Validação de e-mail
+regex = "1.10.2"
+lazy_static = "1.4.0"
 
 
