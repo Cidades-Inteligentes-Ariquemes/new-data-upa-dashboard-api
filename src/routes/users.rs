@@ -22,7 +22,10 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::resource("/{id}/application/{application_name}")
                     .route(web::delete().to(user_handler::delete_application))
-            )
-            
+            ) 
+            .service(
+                web::resource("/{id}/applications")
+                    .route(web::post().to(user_handler::add_application))
+            )     
     );
 }

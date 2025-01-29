@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
-use crate::domain::models::user::{CreateUserDto, UpdateUserDto, User};
+use crate::domain::models::user::{CreateUserDto, UpdateUserDto, AddApplicationDto, User};
 use crate::domain::repositories::user::UserRepository;
 
 pub struct PgUserRepository {
@@ -242,5 +242,43 @@ impl UserRepository for PgUserRepository {
         .await?;
     
         Ok(result.rows_affected() > 0)
+    }
+
+    async fn add_application(&self, id: Uuid, applications: AddApplicationDto) -> Result<Option<User>, sqlx::Error> {
+        let current_user = self.find_by_id(id).await?;
+    
+        if let Some(_) = current_user {
+            let result = sqlx::query!(
+                r#"
+                UPDATE users_api
+                SET allowed_applications = array_cat(allowed_applications, $1)
+                WHERE id = $2
+                RETURNING
+                    id,
+                    full_name,
+                    email,
+                    password,
+                    profile,
+                    allowed_applications as "allowed_applications!: Vec<String>",
+                    enabled
+                "#,
+                &applications.applications_name as &[String],
+                id
+            )
+            .fetch_one(&self.pool)
+            .await?;
+        
+            Ok(Some(User {
+                id: result.id,
+                full_name: result.full_name,
+                email: result.email,
+                password: result.password,
+                profile: result.profile,
+                allowed_applications: result.allowed_applications,
+                enabled: result.enabled,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 }

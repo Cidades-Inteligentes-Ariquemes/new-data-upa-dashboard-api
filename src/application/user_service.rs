@@ -3,7 +3,7 @@ use uuid::Uuid;
 use log::error;
 use crate::{
     domain::{
-        models::user::{CreateUserDto, UpdatePasswordByAdminDto, UpdateUserDto, UserResponse},
+        models::user::{CreateUserDto, UpdatePasswordByAdminDto, UpdateUserDto, AddApplicationDto, UserResponse},
         repositories::user::UserRepository,
     },
     utils::response::ApiResponse,
@@ -205,6 +205,39 @@ impl UserService {
             Ok(false) => Ok(ApiResponse::<()>::user_not_found().into_response()),
             Err(e) => {
                 error!("Error deleting user: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn add_application(&self, id: Uuid, applications: AddApplicationDto) -> Result<HttpResponse, AppError> {
+        // obtem o usuario
+        let user = self.repo.find_by_id(id).await.unwrap();
+    
+        // Verifica se o usuario existe
+        if user.is_none() {
+            return Err(AppError::BadRequest(
+                format!("Error adding application: user with id '{}' not found", id)
+            ));
+        }
+
+        // Validação de aplicações permitidas
+        validate_applications(&applications.applications_name)?;
+
+         // Validação para ver se a aplicação enviada já existe
+        for app in applications.applications_name.iter() {
+            if user.as_ref().unwrap().allowed_applications.contains(app) {
+                return Err(AppError::BadRequest(
+                    format!("Error adding application: application '{}' already exists", app)
+                ));
+            }
+        }
+    
+        match self.repo.add_application(id, applications).await {
+            Ok(Some(user)) => Ok(ApiResponse::success(UserResponse::from(user)).into_response()),
+            Ok(None) => Ok(ApiResponse::<UserResponse>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error adding application: {:?}", e);
                 Err(AppError::InternalServerError)
             }
         }

@@ -47,6 +47,11 @@ pub struct UserResponse {
     pub enabled: bool,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct AddApplicationDto {
+    pub applications_name: Vec<String>,
+}
+
 #[derive(Deserialize)]
 pub struct ApplicationPath {
     pub id: Uuid,
