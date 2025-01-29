@@ -58,6 +58,14 @@ impl<T: Serialize> ApiResponse<T> {
         }
     }
 
+    pub fn updated_password() -> Self {
+        Self {
+            message: "Resource updated successfully".to_string(),
+            status_code: StatusCode::OK,
+            data: None,
+        }
+    }
+
     pub fn deleted() -> Self {
         Self {
             message: "Resource deleted successfully".to_string(),
