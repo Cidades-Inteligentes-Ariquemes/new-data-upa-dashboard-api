@@ -24,16 +24,16 @@ pub struct CreateUserDto {
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateUserDto {
-    pub full_name: Option<String>,
-    pub email: Option<String>,
-    pub profile: Option<String>,
-    pub allowed_applications: Option<Vec<String>>,
-    pub enabled: Option<bool>,
+    pub full_name: String,
+    pub email: String,
+    pub profile: String,
+    pub allowed_applications: Vec<String>,
+    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct UpdatePasswordDto {
-    pub current_password: String,
+pub struct UpdatePasswordByAdminDto {
+    pub email: String,
     pub new_password: String,
 }
 

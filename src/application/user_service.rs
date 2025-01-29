@@ -3,11 +3,12 @@ use uuid::Uuid;
 use log::error;
 use crate::{
     domain::{
-        models::user::{CreateUserDto, UpdatePasswordDto, UpdateUserDto, UserResponse},
+        models::user::{CreateUserDto, UpdatePasswordByAdminDto, UpdateUserDto, UserResponse},
         repositories::user::UserRepository,
     },
     utils::response::ApiResponse,
     AppError,
+    utils::validators::{is_valid_email, validate_applications, validate_profile},
 };
 use crate::infrastructure::repositories::user_repository::PgUserRepository;
 use crate::adapters::password::PasswordEncryptorPort;
@@ -71,6 +72,13 @@ impl UserService {
             }
         }
 
+        // Validação de email
+        if !is_valid_email(&user.email) {
+            return Err(AppError::BadRequest(
+                format!("Error adding user: '{}' is not a valid email", user.email)
+            ));
+        }
+
         // Verifica se o usuário já existe
         if let Some(_) = self.repo.find_by_email(&user.email).await.unwrap() {
             return Err(AppError::BadRequest(
@@ -78,15 +86,11 @@ impl UserService {
             ));
         }
 
+        //Verifica se o perfil é válido
+        validate_profile(&user.profile)?;
+
         // Validação de aplicações permitidas
-        const ALLOWED_APPS: [&str; 2] = ["xpredict", "upavision"];
-        for app in &user.allowed_applications {
-            if !ALLOWED_APPS.contains(&app.as_str()) {
-                return Err(AppError::BadRequest(
-                    format!("Error adding user: '{}' is not a valid application. Allowed values are: xpredict, upavision", app)
-                ));
-            }
-        }
+        validate_applications(&user.allowed_applications)?;
 
         // Hash da senha
         let mut user_with_hash = user;
@@ -107,6 +111,43 @@ impl UserService {
     }
 
     pub async fn update_user(&self, id: Uuid, user: UpdateUserDto) -> Result<HttpResponse, AppError> {
+        // Verifica se o usuario existe
+        if self.repo.find_by_id(id).await.unwrap().is_none() {
+            return Err(AppError::BadRequest(
+                format!("Error updating user: user with id '{}' not found", id)
+            ));
+        }
+
+        // Validações de campos vazios
+        let validations = [
+            ("full_name", user.full_name.is_empty()),
+            ("email", user.email.is_empty()),
+            ("profile", user.profile.is_empty()),
+            ("allowed_applications", user.allowed_applications.is_empty()),
+            ("enabled", !user.enabled),
+        ];
+
+        for (field_name, is_none) in validations {
+            if is_none {
+                return Err(AppError::BadRequest(
+                    format!("Error updating user: {} cannot be empty", field_name)
+                ));
+            }
+        }
+
+        // Validação de email
+        if !is_valid_email(&user.email) {
+            return Err(AppError::BadRequest(
+                format!("Error adding user: '{}' is not a valid email", user.email)
+            ));
+        }
+
+        //Verifica se o perfil é válido
+        validate_profile(&user.profile)?;
+
+        // Validação de aplicações permitidas
+        validate_applications(&user.allowed_applications)?;
+
         match self.repo.update(id, user).await {
             Ok(Some(user)) => Ok(ApiResponse::updated(UserResponse::from(user)).into_response()),
             Ok(None) => Ok(ApiResponse::<UserResponse>::user_not_found().into_response()),
@@ -117,31 +158,31 @@ impl UserService {
         }
     }
 
-    pub async fn update_password(&self, id: Uuid, passwords: UpdatePasswordDto) -> Result<HttpResponse, AppError> {
-        // Verifica a senha atual e faz o hash da nova senha
-        let current_user = match self.repo.find_by_id(id).await {
-            Ok(Some(user)) => user,
-            Ok(None) => return Ok(ApiResponse::<()>::user_not_found().into_response()),
-            Err(e) => {
-                error!("Error fetching user: {:?}", e);
-                return Err(AppError::InternalServerError);
+    pub async fn update_password_by_admin(&self, id: Uuid, data: UpdatePasswordByAdminDto) -> Result<HttpResponse, AppError> {
+
+        // Validações de campos vazios
+
+        let _validations = [
+            ("email", data.email.is_empty()),
+            ("new_password", data.new_password.is_empty()),
+        ];
+
+        for (field_name, is_empty) in _validations {
+            if is_empty {
+                return Err(AppError::BadRequest(
+                    format!("Error updating password: {} cannot be empty", field_name)
+                ));
             }
-        };
-    
-        // Verifica senha atual
-        if !self.password_encryptor.verify_password(&current_user.password, &passwords.current_password)
-            .map_err(|_| AppError::InternalServerError)? {
-            return Err(AppError::BadRequest("Current password is incorrect".into()));
         }
     
         // Hash da nova senha
         let new_password_hash = self.password_encryptor
-            .hash_password(&passwords.new_password)
+            .hash_password(&data.new_password)
             .map_err(|_| AppError::InternalServerError)?;
     
         // Atualiza a senha
         match self.repo.update_password(id, new_password_hash).await {
-            Ok(true) => Ok(ApiResponse::success("Password updated successfully").into_response()),
+            Ok(true) => Ok(ApiResponse::<()>::updated_password().into_response()),
             Ok(false) => Ok(ApiResponse::<()>::user_not_found().into_response()),
             Err(e) => {
                 error!("Error updating password: {:?}", e);
@@ -151,6 +192,14 @@ impl UserService {
     }
 
     pub async fn delete_user(&self, id: Uuid) -> Result<HttpResponse, AppError> {
+
+        // Verifica se o usuario existe
+        if self.repo.find_by_id(id).await.unwrap().is_none() {
+            return Err(AppError::BadRequest(
+                format!("Error deleting user: user with id '{}' not found", id)
+            ));
+        }
+
         match self.repo.delete(id).await {
             Ok(true) => Ok(ApiResponse::<()>::deleted().into_response()),
             Ok(false) => Ok(ApiResponse::<()>::user_not_found().into_response()),

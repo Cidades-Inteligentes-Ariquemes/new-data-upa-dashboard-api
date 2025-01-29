@@ -154,7 +154,7 @@ impl UserRepository for PgUserRepository {
     async fn update(&self, id: Uuid, user: UpdateUserDto) -> Result<Option<User>, sqlx::Error> {
         let current_user = self.find_by_id(id).await?;
 
-        if let Some(user_data) = current_user {
+        if let Some(_) = current_user {
             let updated_user = sqlx::query!(
                 r#"
                 UPDATE users_api
@@ -174,11 +174,11 @@ impl UserRepository for PgUserRepository {
                     allowed_applications as "allowed_applications!: Vec<String>",
                     enabled
                 "#,
-                user.full_name.unwrap_or(user_data.full_name),
-                user.email.unwrap_or(user_data.email),
-                user.profile.unwrap_or(user_data.profile),
-                &user.allowed_applications.unwrap_or(user_data.allowed_applications),
-                user.enabled.unwrap_or(user_data.enabled),
+                user.full_name,
+                user.email,
+                user.profile,
+                &user.allowed_applications as &[String],
+                user.enabled,
                 id
             )
                 .fetch_one(&self.pool)

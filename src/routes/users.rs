@@ -16,8 +16,8 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .route(web::delete().to(user_handler::delete_user))
             )
             .service(
-                web::resource("/{id}/password")
-                    .route(web::put().to(user_handler::update_password))
+                web::resource("/{id}/update-password-by-admin")
+                    .route(web::put().to(user_handler::update_password_by_admin))
             )
     );
 }

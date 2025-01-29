@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse};
 use uuid::Uuid;
 use crate::{
     application::user_service::UserService,
-    domain::models::user::{CreateUserDto, UpdatePasswordDto, UpdateUserDto},
+    domain::models::user::{CreateUserDto, UpdatePasswordByAdminDto, UpdateUserDto},
     AppError,
 };
 
@@ -39,10 +39,10 @@ pub async fn delete_user(
     service.delete_user(id.into_inner()).await
 }
 
-pub async fn update_password(
+pub async fn update_password_by_admin(
     service: web::Data<UserService>,
     id: web::Path<Uuid>,
-    passwords: web::Json<UpdatePasswordDto>,
+    passwords: web::Json<UpdatePasswordByAdminDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.update_password(id.into_inner(), passwords.into_inner()).await
+    service.update_password_by_admin(id.into_inner(), passwords.into_inner()).await
 }
