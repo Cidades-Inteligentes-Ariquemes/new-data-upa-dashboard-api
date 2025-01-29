@@ -11,4 +11,5 @@ pub trait UserRepository: Send + Sync + 'static {
     async fn update(&self, id: Uuid, user: UpdateUserDto) -> Result<Option<User>, sqlx::Error>;
     async fn update_password(&self, id: Uuid, new_password: String) -> Result<bool, sqlx::Error>;    
     async fn delete(&self, id: Uuid) -> Result<bool, sqlx::Error>;
+    async fn delete_application(&self, id: Uuid, application_name: &str) -> Result<bool, sqlx::Error>;
 }

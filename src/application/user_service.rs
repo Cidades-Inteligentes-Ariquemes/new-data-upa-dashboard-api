@@ -209,4 +209,39 @@ impl UserService {
             }
         }
     }
+
+    pub async fn delete_application(&self, id: Uuid, application_name: String) -> Result<HttpResponse, AppError> {
+
+        // obtem o usuario
+        let user = self.repo.find_by_id(id).await.unwrap();
+
+        // Verifica se o usuario existe
+        if user.is_none() {
+            return Err(AppError::BadRequest(
+                format!("Error deleting application: user with id '{}' not found", id)
+            ));
+        }
+
+        // Validação de aplicações permitidas
+        validate_applications(&[application_name.clone()])?;
+
+        // Verifica se existe mais de uma aplicação permitida
+        if user.unwrap().allowed_applications.len() == 1 {
+            return Err(AppError::BadRequest(
+                "Error deleting application: user must have at least one allowed application".to_string()
+            ));
+        }
+
+        match self.repo.delete_application(id, &application_name).await {
+            Ok(true) => Ok(ApiResponse::<()>::deleted().into_response()),
+            Ok(false) => Ok(ApiResponse::<()>::application_not_found().into_response()),
+            Err(e) => {
+                error!("Error deleting application: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+    
 }
+
+    

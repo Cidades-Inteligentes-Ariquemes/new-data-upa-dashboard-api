@@ -227,4 +227,20 @@ impl UserRepository for PgUserRepository {
     
         Ok(result.rows_affected() > 0)
     }
+
+    async fn delete_application(&self, id: Uuid, application_name: &str) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE users_api
+            SET allowed_applications = array_remove(allowed_applications, $1)
+            WHERE id = $2
+            "#,
+            application_name,
+            id
+        )
+        .execute(&self.pool)
+        .await?;
+    
+        Ok(result.rows_affected() > 0)
+    }
 }

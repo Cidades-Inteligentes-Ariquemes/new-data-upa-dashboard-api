@@ -47,6 +47,12 @@ pub struct UserResponse {
     pub enabled: bool,
 }
 
+#[derive(Deserialize)]
+pub struct ApplicationPath {
+    pub id: Uuid,
+    pub application_name: String,
+}
+
 impl From<User> for UserResponse {
     fn from(user: User) -> Self {
         Self {

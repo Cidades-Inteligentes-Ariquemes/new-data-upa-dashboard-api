@@ -74,6 +74,14 @@ impl<T: Serialize> ApiResponse<T> {
         }
     }
 
+    pub fn application_not_found() -> Self {
+        Self {
+            message: "Application not found".to_string(),
+            status_code: StatusCode::NOT_FOUND,
+            data: None,
+        }
+    }
+
     pub fn into_response(self) -> HttpResponse {
         HttpResponse::build(self.status_code)
             .json(json!({
