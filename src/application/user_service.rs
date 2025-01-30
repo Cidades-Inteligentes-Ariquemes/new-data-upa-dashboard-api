@@ -15,7 +15,7 @@ use crate::{
     },
     utils::response::ApiResponse,
     AppError,
-    utils::validators::{is_valid_email, validate_applications, validate_profile},
+    utils::validators::{is_valid_email, validate_applications, validate_profile, validate_respiratory_diseases},
 };
 use crate::infrastructure::repositories::user_repository::PgUserRepository;
 use crate::adapters::password::PasswordEncryptorPort;
@@ -349,6 +349,10 @@ impl UserService {
                 ));
             }
         }
+
+        // Validação de doenças respiratórias permitidas
+
+        validate_respiratory_diseases(&[feedback.prediction_made.clone(), feedback.correct_prediction.clone()])?;
 
         match self.repo.create_feedback_respiratory_diseases(feedback).await {
             Ok(feedback) => Ok(ApiResponse::created(feedback).into_response()),

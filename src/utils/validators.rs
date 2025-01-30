@@ -15,6 +15,7 @@ pub fn is_valid_email(email: &str) -> bool {
 
 pub const ALLOWED_PROFILES: [&str; 2] = ["Administrador", "Usuario Comum"];
 pub const ALLOWED_APPS: [&str; 2] = ["xpredict", "upavision"];
+pub const ALLOWED_RESPIRATORY_DISEASES: [&str; 4] = ["normal", "covid-19", "pneumonia viral", "pneumonia bacteriana"];
 
 pub fn validate_profile(profile: &str) -> Result<(), AppError> {
     if !ALLOWED_PROFILES.contains(&profile) {
@@ -34,9 +35,24 @@ pub fn validate_applications(applications: &[String]) -> Result<(), AppError> {
         if !ALLOWED_APPS.contains(&app.as_str()) {
             return Err(AppError::BadRequest(
                 format!(
-                    "Error: '{}' is not a valid application. Allowed values are: {}", 
+                    "Error: '{}' is not a valid application. Allowed values are: {}",
                     app,
                     ALLOWED_APPS.join(", ")
+                )
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_respiratory_diseases(diseases: &[String; 2]) -> Result<(), AppError> {
+    for disease in diseases {
+        if !ALLOWED_RESPIRATORY_DISEASES.contains(&disease.as_str()) {
+            return Err(AppError::BadRequest(
+                format!(
+                    "Error: '{}' is not a respiratory diseases. Allowed values are: {}",
+                    disease,
+                    ALLOWED_RESPIRATORY_DISEASES.join(", ")
                 )
             ));
         }
