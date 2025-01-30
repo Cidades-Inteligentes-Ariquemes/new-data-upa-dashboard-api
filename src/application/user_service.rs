@@ -1,6 +1,8 @@
+use std::collections::HashMap;
 use actix_web::{web, HttpResponse};
 use uuid::Uuid;
 use log::error;
+use serde_json::json;
 use crate::{
     domain::{
         models::user::{
@@ -10,6 +12,7 @@ use crate::{
             UpdateUserDto, AddApplicationDto, 
             UserResponse,
             CreateFeedbackRespiratoryDiseasesDto,
+            DiseaseStats
         },
         repositories::user::UserRepository,
     },
@@ -19,6 +22,8 @@ use crate::{
 };
 use crate::infrastructure::repositories::user_repository::PgUserRepository;
 use crate::adapters::password::PasswordEncryptorPort;
+use crate::domain::models::user::FeedbackRespiratoryDiseasesResponse;
+use crate::utils::validators::ALLOWED_RESPIRATORY_DISEASES;
 
 pub struct UserService {
     repo: web::Data<PgUserRepository>,
@@ -358,6 +363,56 @@ impl UserService {
             Ok(feedback) => Ok(ApiResponse::created(feedback).into_response()),
             Err(e) => {
                 error!("Error creating feedback: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn get_feedbacks(&self) -> Result<HttpResponse, AppError> {
+        match self.repo.find_all_feedbacks().await {
+            Ok(feedbacks) => {
+                let responses: Vec<FeedbackRespiratoryDiseasesResponse> = feedbacks.into_iter()
+                    .map(FeedbackRespiratoryDiseasesResponse::from)
+                    .collect();
+
+                if responses.is_empty() {
+                    Ok(ApiResponse::<Vec<FeedbackRespiratoryDiseasesResponse>>::feedbacks_not_found().into_response())
+                } else {
+                    // Inicializa contadores
+                    let mut stats = HashMap::new();
+                    for disease in ALLOWED_RESPIRATORY_DISEASES {
+                        stats.insert(disease, DiseaseStats {
+                            total_quantity: 0,
+                            total_quantity_correct: 0,
+                        });
+                    }
+
+                    // Processa cada feedback
+                    for feedback in responses {
+                        // Incrementa total para prediction_made
+                        if let Some(stat) = stats.get_mut(feedback.prediction_made.as_str()) {
+                            stat.total_quantity += 1;
+                            // Se o feedback é "sim", incrementa os acertos
+                            if feedback.feedback == "sim" {
+                                stat.total_quantity_correct += 1;
+                            }
+                        }
+                    }
+
+                    let final_response = json!({
+                        "data": {
+                            "normal": stats.get("normal").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
+                            "covid-19": stats.get("covid-19").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
+                            "pneumonia viral": stats.get("pneumonia viral").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
+                            "pneumonia bacteriana": stats.get("pneumonia bacteriana").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
+                        }
+                    });
+
+                    Ok(ApiResponse::success(final_response["data"].clone()).into_response())
+                }
+            },
+            Err(e) => {
+                error!("Error fetching feedbacks: {:?}", e);
                 Err(AppError::InternalServerError)
             }
         }

@@ -81,6 +81,20 @@ pub struct FeedbackRespiratoryDiseasesResponse {
     pub correct_prediction: String,
 }
 
+#[derive(Debug, Serialize)]
+pub struct DiseaseStats {
+    pub total_quantity: i32,
+    pub total_quantity_correct: i32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ProcessedFeedbackResponse {
+    pub normal: DiseaseStats,
+    pub covid_19: DiseaseStats,
+    pub pneumonia_viral: DiseaseStats,
+    pub pneumonia_bacteriana: DiseaseStats,
+}
+
 impl From<User> for UserResponse {
     fn from(user: User) -> Self {
         Self {

@@ -42,6 +42,14 @@ impl<T: Serialize> ApiResponse<T> {
         }
     }
 
+    pub fn feedbacks_not_found() -> Self {
+        Self {
+            message: "Feedbacks not found".to_string(),
+            status_code: StatusCode::NOT_FOUND,
+            data: None,
+        }
+    }
+
     pub fn created(data: T) -> Self {
         Self {
             message: "Resource created successfully".to_string(),

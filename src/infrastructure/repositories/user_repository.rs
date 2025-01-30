@@ -53,6 +53,31 @@ impl UserRepository for PgUserRepository {
         }).collect())
     }
 
+    async fn find_all_feedbacks(&self) -> Result<Vec<FeedbackRespiratoryDiseasesResponse>, sqlx::Error> {
+        let feedbacks = sqlx::query!(
+            r#"
+            SELECT
+                id,
+                user_name,
+                feedback,
+                prediction_made,
+                correct_prediction
+            FROM feedbacks
+            ORDER BY user_name
+            "#
+        )
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(feedbacks.into_iter().map(|row| FeedbackRespiratoryDiseasesResponse {
+            id: row.id,
+            user_name: row.user_name,
+            feedback: row.feedback,
+            prediction_made: row.prediction_made,
+            correct_prediction: row.correct_prediction
+        }).collect())
+    }
+
     async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error> {
         let user = sqlx::query!(
             r#"

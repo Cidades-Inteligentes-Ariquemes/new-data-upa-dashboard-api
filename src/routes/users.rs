@@ -7,7 +7,11 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::resource("/feedback-respiratory-diseases")
                     .route(web::post().to(user_handler::create_feedback_respiratory_diseases))
-            )   
+            )
+            .service(
+                web::resource("/feedbacks")
+                    .route(web::get().to(user_handler::get_feedbacks))
+            )
             .service(
                 web::resource("")
                     .route(web::get().to(user_handler::get_users))
