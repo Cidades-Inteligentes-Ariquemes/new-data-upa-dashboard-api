@@ -5,6 +5,10 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/users")
             .service(
+                web::resource("/feedback-respiratory-diseases")
+                    .route(web::post().to(user_handler::create_feedback_respiratory_diseases))
+            )   
+            .service(
                 web::resource("")
                     .route(web::get().to(user_handler::get_users))
                     .route(web::post().to(user_handler::create_user))
@@ -26,6 +30,10 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::resource("/{id}/applications")
                     .route(web::post().to(user_handler::add_application))
-            )     
+            )
+            .service(
+                web::resource("/{id}/update-password-by-user-common")
+                    .route(web::patch().to(user_handler::update_password_by_user_common))
+            )      
     );
 }

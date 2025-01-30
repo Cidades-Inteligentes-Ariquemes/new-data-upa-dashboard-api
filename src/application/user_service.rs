@@ -3,7 +3,14 @@ use uuid::Uuid;
 use log::error;
 use crate::{
     domain::{
-        models::user::{CreateUserDto, UpdatePasswordByAdminDto, UpdateUserDto, AddApplicationDto, UserResponse},
+        models::user::{
+            CreateUserDto, 
+            UpdatePasswordByAdminDto, 
+            UpdatePasswordByUserCommonDto, 
+            UpdateUserDto, AddApplicationDto, 
+            UserResponse,
+            CreateFeedbackRespiratoryDiseasesDto,
+        },
         repositories::user::UserRepository,
     },
     utils::response::ApiResponse,
@@ -191,6 +198,57 @@ impl UserService {
         }
     }
 
+    pub async fn update_password_by_user_common(&self, id: Uuid, data: UpdatePasswordByUserCommonDto) -> Result<HttpResponse, AppError> {
+        // Validações de campos vazios
+        let validations = [
+            ("current_password", data.current_password.is_empty()),
+            ("new_password", data.new_password.is_empty()),
+        ];
+
+        for (field_name, is_empty) in validations {
+            if is_empty {
+                return Err(AppError::BadRequest(
+                    format!("Error updating password: {} cannot be empty", field_name)
+                ));
+            }
+        }
+
+        // Obtem o usuario
+        let user = self.repo.find_by_id(id).await.unwrap();
+
+        // Verifica se o usuario existe
+        if user.is_none() {
+            return Err(AppError::BadRequest(
+                format!("Error updating password: user with id '{}' not found", id)
+            ));
+        }
+
+        // Verifica se a senha atual está correta
+        if !self.password_encryptor.verify_password(&user.as_ref().unwrap().password, &data.current_password).map_err(|e| {
+            error!("Error verifying password: {:?}", e);
+            AppError::InternalServerError
+        })? {
+            return Err(AppError::BadRequest(
+                "Error updating password: current password is incorrect".to_string()
+            ));
+        }
+
+        // Hash da nova senha
+        let new_password_hash = self.password_encryptor
+            .hash_password(&data.new_password)
+            .map_err(|_| AppError::InternalServerError)?;
+
+        // Atualiza a senha
+        match self.repo.update_password(id, new_password_hash).await {
+            Ok(true) => Ok(ApiResponse::<()>::updated_password().into_response()),
+            Ok(false) => Ok(ApiResponse::<()>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error updating password: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
     pub async fn delete_user(&self, id: Uuid) -> Result<HttpResponse, AppError> {
 
         // Verifica se o usuario existe
@@ -270,6 +328,32 @@ impl UserService {
             Ok(false) => Ok(ApiResponse::<()>::application_not_found().into_response()),
             Err(e) => {
                 error!("Error deleting application: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn create_feedback_respiratory_diseases(&self, feedback: CreateFeedbackRespiratoryDiseasesDto) -> Result<HttpResponse, AppError> {
+        // Validações de campos vazios
+        let validations = [
+            ("user_name", feedback.user_name.is_empty()),
+            ("feedback", feedback.feedback.is_empty()),
+            ("prediction_made", feedback.prediction_made.is_empty()),
+            ("correct_prediction", feedback.correct_prediction.is_empty()),
+        ];
+
+        for (field_name, is_empty) in validations {
+            if is_empty {
+                return Err(AppError::BadRequest(
+                    format!("Error creating feedback: {} cannot be empty", field_name)
+                ));
+            }
+        }
+
+        match self.repo.create_feedback_respiratory_diseases(feedback).await {
+            Ok(feedback) => Ok(ApiResponse::created(feedback).into_response()),
+            Err(e) => {
+                error!("Error creating feedback: {:?}", e);
                 Err(AppError::InternalServerError)
             }
         }

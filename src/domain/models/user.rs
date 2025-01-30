@@ -37,6 +37,12 @@ pub struct UpdatePasswordByAdminDto {
     pub new_password: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdatePasswordByUserCommonDto {
+    pub current_password: String,
+    pub new_password: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct UserResponse {
     pub id: Uuid,
@@ -56,6 +62,23 @@ pub struct AddApplicationDto {
 pub struct ApplicationPath {
     pub id: Uuid,
     pub application_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateFeedbackRespiratoryDiseasesDto {
+    pub user_name: String,
+    pub feedback: String,
+    pub prediction_made: String,
+    pub correct_prediction: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FeedbackRespiratoryDiseasesResponse {
+    pub id: Uuid,
+    pub user_name: String,
+    pub feedback: String,
+    pub prediction_made: String,
+    pub correct_prediction: String,
 }
 
 impl From<User> for UserResponse {

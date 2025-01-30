@@ -1,6 +1,13 @@
 use async_trait::async_trait;
 use uuid::Uuid;
-use crate::domain::models::user::{AddApplicationDto, CreateUserDto, UpdateUserDto, User};
+use crate::domain::models::user::{
+    AddApplicationDto, 
+    CreateUserDto, 
+    UpdateUserDto,
+    CreateFeedbackRespiratoryDiseasesDto,
+    FeedbackRespiratoryDiseasesResponse, 
+    User
+};
 
 #[async_trait]
 pub trait UserRepository: Send + Sync + 'static {
@@ -13,4 +20,5 @@ pub trait UserRepository: Send + Sync + 'static {
     async fn delete(&self, id: Uuid) -> Result<bool, sqlx::Error>;
     async fn delete_application(&self, id: Uuid, application_name: &str) -> Result<bool, sqlx::Error>;
     async fn add_application(&self, id: Uuid, applications: AddApplicationDto) -> Result<Option<User>, sqlx::Error>;
+    async fn create_feedback_respiratory_diseases(&self, feedback: CreateFeedbackRespiratoryDiseasesDto) -> Result<Option<FeedbackRespiratoryDiseasesResponse>, sqlx::Error>;
 }

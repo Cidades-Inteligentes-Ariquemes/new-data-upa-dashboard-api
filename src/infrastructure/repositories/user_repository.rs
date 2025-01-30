@@ -1,7 +1,14 @@
 use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
-use crate::domain::models::user::{CreateUserDto, UpdateUserDto, AddApplicationDto, User};
+use crate::domain::models::user::{
+    CreateUserDto, 
+    UpdateUserDto, 
+    AddApplicationDto,
+    CreateFeedbackRespiratoryDiseasesDto,
+    FeedbackRespiratoryDiseasesResponse, 
+    User
+};
 use crate::domain::repositories::user::UserRepository;
 
 pub struct PgUserRepository {
@@ -280,5 +287,44 @@ impl UserRepository for PgUserRepository {
         } else {
             Ok(None)
         }
+    }
+
+    async fn create_feedback_respiratory_diseases(
+        &self, 
+        feedback: CreateFeedbackRespiratoryDiseasesDto
+    ) -> Result<Option<FeedbackRespiratoryDiseasesResponse>, sqlx::Error> {
+        let id = Uuid::new_v4();
+        let created_at = chrono::Utc::now().naive_utc();
+        
+        sqlx::query!(
+            r#"
+            INSERT INTO feedbacks (
+                id,
+                user_name,
+                feedback,
+                prediction_made,
+                correct_prediction,
+                created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id
+            "#,
+            id,
+            feedback.user_name,
+            feedback.feedback,
+            feedback.prediction_made,
+            feedback.correct_prediction,
+            created_at
+        )
+        .fetch_one(&self.pool)
+        .await?;
+    
+        Ok(Some(FeedbackRespiratoryDiseasesResponse {
+            id,
+            user_name: feedback.user_name,
+            feedback: feedback.feedback,
+            prediction_made: feedback.prediction_made,
+            correct_prediction: feedback.correct_prediction,
+        }))
     }
 }
