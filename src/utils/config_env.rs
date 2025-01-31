@@ -5,6 +5,9 @@ pub struct Config {
     pub database_url: String,
     pub server_addr: String,
     pub jwt_secret: String,
+    pub email: String,
+    pub email_password: String,
+    pub app_name: String,
 }
 
 impl Config {
@@ -13,6 +16,9 @@ impl Config {
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
             server_addr: env::var("SERVER_ADDR").expect("SERVER_ADDR must be set"),
             jwt_secret: env::var("JWT_SECRET").expect("JWT_SECRET must be set"),
+            email: env::var("EMAIL").expect("EMAIL must be set"),
+            email_password: env::var("EMAIL_PASSWORD").expect("EMAIL_PASSWORD must be set"),
+            app_name: env::var("APP_NAME").expect("APP_NAME must be set"),
         }
     }
 }
