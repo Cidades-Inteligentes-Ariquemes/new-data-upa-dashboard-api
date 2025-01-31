@@ -94,8 +94,8 @@ pub async fn create_feedback_tuberculosis(
     service.create_feedback_tuberculosis(feedback.into_inner()).await
 }
 
-pub async fn get_feedbacks_respiratory_diseases(
+pub async fn get_feedbacks(
     service: web::Data<UserService>,
 ) -> Result<HttpResponse, AppError> {
-    service.get_feedbacks_respiratory_diseases().await
+    service.get_feedbacks().await
 }

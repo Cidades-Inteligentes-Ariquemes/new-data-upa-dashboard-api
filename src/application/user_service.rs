@@ -399,7 +399,7 @@ impl UserService {
         }
     }
 
-    pub async fn get_feedbacks_respiratory_diseases(&self) -> Result<HttpResponse, AppError> {
+    pub async fn get_feedbacks(&self) -> Result<HttpResponse, AppError> {
         match self.repo.find_all_feedbacks_respiratory_diseases().await {
             Ok(feedbacks) => {
                 let responses: Vec<FeedbackRespiratoryDiseasesResponse> = feedbacks.into_iter()
