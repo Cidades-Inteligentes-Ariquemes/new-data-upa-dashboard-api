@@ -81,6 +81,19 @@ pub struct FeedbackRespiratoryDiseasesResponse {
     pub correct_prediction: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateFeedbackTuberculosisDto {
+    pub user_name: String,
+    pub feedback: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FeedbackTuberculosisResponse {
+    pub id: Uuid,
+    pub user_name: String,
+    pub feedback: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct DiseaseStats {
     pub total_quantity: i32,

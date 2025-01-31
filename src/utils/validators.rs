@@ -16,6 +16,7 @@ pub fn is_valid_email(email: &str) -> bool {
 pub const ALLOWED_PROFILES: [&str; 2] = ["Administrador", "Usuario Comum"];
 pub const ALLOWED_APPS: [&str; 2] = ["xpredict", "upavision"];
 pub const ALLOWED_RESPIRATORY_DISEASES: [&str; 4] = ["normal", "covid-19", "pneumonia viral", "pneumonia bacteriana"];
+pub const ALLOWED_FEEDBACKS:[&str; 2] = ["sim", "não"];
 
 pub fn validate_profile(profile: &str) -> Result<(), AppError> {
     if !ALLOWED_PROFILES.contains(&profile) {
@@ -56,6 +57,19 @@ pub fn validate_respiratory_diseases(diseases: &[String; 2]) -> Result<(), AppEr
                 )
             ));
         }
+    }
+    Ok(())
+}
+
+pub fn validate_feedbacks(feedback: &str) -> Result<(), AppError> {
+    if !ALLOWED_FEEDBACKS.contains(&feedback) {
+        return Err(AppError::BadRequest(
+            format!(
+                "Error: '{}' is not a valid feedback. Allowed values are: {}",
+                feedback,
+                ALLOWED_FEEDBACKS.join(", ")
+            )
+        ));
     }
     Ok(())
 }

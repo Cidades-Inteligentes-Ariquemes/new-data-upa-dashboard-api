@@ -9,8 +9,12 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .route(web::post().to(user_handler::create_feedback_respiratory_diseases))
             )
             .service(
+                web::resource("/feedback-tuberculosis")
+                    .route(web::post().to(user_handler::create_feedback_tuberculosis))
+            )
+            .service(
                 web::resource("/feedbacks")
-                    .route(web::get().to(user_handler::get_feedbacks))
+                    .route(web::get().to(user_handler::get_feedbacks_respiratory_diseases))
             )
             .service(
                 web::resource("")

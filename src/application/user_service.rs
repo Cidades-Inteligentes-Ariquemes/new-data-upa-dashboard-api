@@ -12,18 +12,19 @@ use crate::{
             UpdateUserDto, AddApplicationDto, 
             UserResponse,
             CreateFeedbackRespiratoryDiseasesDto,
+            CreateFeedbackTuberculosisDto,
             DiseaseStats
         },
         repositories::user::UserRepository,
     },
     utils::response::ApiResponse,
     AppError,
-    utils::validators::{is_valid_email, validate_applications, validate_profile, validate_respiratory_diseases},
+    utils::validators::{is_valid_email, validate_applications, validate_profile, validate_respiratory_diseases, validate_feedbacks},
 };
 use crate::infrastructure::repositories::user_repository::PgUserRepository;
 use crate::adapters::password::PasswordEncryptorPort;
-use crate::domain::models::user::FeedbackRespiratoryDiseasesResponse;
-use crate::utils::validators::ALLOWED_RESPIRATORY_DISEASES;
+use crate::domain::models::user::{FeedbackRespiratoryDiseasesResponse};
+use crate::utils::validators::{ALLOWED_RESPIRATORY_DISEASES};
 
 pub struct UserService {
     repo: web::Data<PgUserRepository>,
@@ -355,8 +356,10 @@ impl UserService {
             }
         }
 
-        // Validação de doenças respiratórias permitidas
+        // Validaçao de feedback permitido
+        validate_feedbacks(&feedback.feedback)?;
 
+        // Validação de doenças respiratórias permitidas
         validate_respiratory_diseases(&[feedback.prediction_made.clone(), feedback.correct_prediction.clone()])?;
 
         match self.repo.create_feedback_respiratory_diseases(feedback).await {
@@ -368,8 +371,36 @@ impl UserService {
         }
     }
 
-    pub async fn get_feedbacks(&self) -> Result<HttpResponse, AppError> {
-        match self.repo.find_all_feedbacks().await {
+    pub async fn create_feedback_tuberculosis(&self, feedback_tuberculosis: CreateFeedbackTuberculosisDto ) -> Result<HttpResponse, AppError> {
+
+        //Validação de campos vazios
+        let validations = [
+            ("user_name", feedback_tuberculosis.user_name.is_empty()),
+            ("feedback", feedback_tuberculosis.feedback.is_empty()),
+        ];
+
+        for (field_name, is_empty) in validations {
+            if is_empty {
+                return Err(AppError::BadRequest(
+                    format!("Error creating feedback: {} cannot be empty", field_name)
+                ));
+            }
+        }
+
+        // Validação de feedbacks permitidos
+        validate_feedbacks(&feedback_tuberculosis.feedback)?;
+
+        match self.repo.create_feedback_tuberculosis(feedback_tuberculosis).await {
+            Ok(feedback_tuberculosis) => Ok(ApiResponse::created(feedback_tuberculosis).into_response()),
+            Err(e) => {
+                error!("Error creating feedback: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn get_feedbacks_respiratory_diseases(&self) -> Result<HttpResponse, AppError> {
+        match self.repo.find_all_feedbacks_respiratory_diseases().await {
             Ok(feedbacks) => {
                 let responses: Vec<FeedbackRespiratoryDiseasesResponse> = feedbacks.into_iter()
                     .map(FeedbackRespiratoryDiseasesResponse::from)
@@ -378,37 +409,53 @@ impl UserService {
                 if responses.is_empty() {
                     Ok(ApiResponse::<Vec<FeedbackRespiratoryDiseasesResponse>>::feedbacks_not_found().into_response())
                 } else {
-                    // Inicializa contadores
-                    let mut stats = HashMap::new();
-                    for disease in ALLOWED_RESPIRATORY_DISEASES {
-                        stats.insert(disease, DiseaseStats {
-                            total_quantity: 0,
-                            total_quantity_correct: 0,
-                        });
-                    }
+                    let feedbacks_tuberculosis = self.repo.find_all_feedbacks_tuberculosis().await.unwrap();
 
-                    // Processa cada feedback
-                    for feedback in responses {
-                        // Incrementa total para prediction_made
-                        if let Some(stat) = stats.get_mut(feedback.prediction_made.as_str()) {
-                            stat.total_quantity += 1;
-                            // Se o feedback é "sim", incrementa os acertos
-                            if feedback.feedback == "sim" {
-                                stat.total_quantity_correct += 1;
+                    if feedbacks_tuberculosis.is_empty() {
+                        Ok(ApiResponse::<Vec<FeedbackRespiratoryDiseasesResponse>>::feedbacks_not_found().into_response())
+                    } else {
+                        // Processa feedbacks de tuberculose
+                        let total_tuberculosis = feedbacks_tuberculosis.len();
+                        let total_correct_tuberculosis = feedbacks_tuberculosis
+                            .iter()
+                            .filter(|f| f.feedback.to_lowercase() == "sim")
+                            .count();
+
+                        // Inicializa contadores para doenças respiratórias
+                        let mut stats = HashMap::new();
+                        for disease in ALLOWED_RESPIRATORY_DISEASES {
+                            stats.insert(disease, DiseaseStats {
+                                total_quantity: 0,
+                                total_quantity_correct: 0,
+                            });
+                        }
+
+                        // Processa cada feedback de doenças respiratórias
+                        for feedback in responses {
+                            if let Some(stat) = stats.get_mut(feedback.prediction_made.as_str()) {
+                                stat.total_quantity += 1;
+                                if feedback.feedback.to_lowercase() == "sim" {
+                                    stat.total_quantity_correct += 1;
+                                }
                             }
                         }
-                    }
 
-                    let final_response = json!({
-                        "data": {
+                        // Monta a resposta final
+                        let final_response = json!({
+                        "feedbacks_respiratory_diseases": {
                             "normal": stats.get("normal").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
                             "covid-19": stats.get("covid-19").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
                             "pneumonia viral": stats.get("pneumonia viral").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
                             "pneumonia bacteriana": stats.get("pneumonia bacteriana").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
+                        },
+                        "feedbacks_tuberculosis": {
+                            "total_quantity": total_tuberculosis,
+                            "total_quantity_correct": total_correct_tuberculosis
                         }
                     });
 
-                    Ok(ApiResponse::success(final_response["data"].clone()).into_response())
+                        Ok(ApiResponse::success(final_response).into_response())
+                    }
                 }
             },
             Err(e) => {

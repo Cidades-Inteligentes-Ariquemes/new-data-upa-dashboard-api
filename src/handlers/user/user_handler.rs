@@ -10,6 +10,7 @@ use crate::{
         UpdatePasswordByUserCommonDto, 
         UpdateUserDto,
         CreateFeedbackRespiratoryDiseasesDto,
+        CreateFeedbackTuberculosisDto,
     },
     AppError,
 };
@@ -86,8 +87,15 @@ pub async fn create_feedback_respiratory_diseases(
     service.create_feedback_respiratory_diseases(feedback.into_inner()).await
 }
 
-pub async fn get_feedbacks(
+pub async fn create_feedback_tuberculosis(
+    service: web::Data<UserService>,
+    feedback: web::Json<CreateFeedbackTuberculosisDto>,
+) -> Result<HttpResponse, AppError> {
+    service.create_feedback_tuberculosis(feedback.into_inner()).await
+}
+
+pub async fn get_feedbacks_respiratory_diseases(
     service: web::Data<UserService>,
 ) -> Result<HttpResponse, AppError> {
-    service.get_feedbacks().await
+    service.get_feedbacks_respiratory_diseases().await
 }

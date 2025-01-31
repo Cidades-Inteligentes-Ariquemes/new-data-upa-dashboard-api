@@ -1,13 +1,6 @@
 use async_trait::async_trait;
 use uuid::Uuid;
-use crate::domain::models::user::{
-    AddApplicationDto, 
-    CreateUserDto, 
-    UpdateUserDto,
-    CreateFeedbackRespiratoryDiseasesDto,
-    FeedbackRespiratoryDiseasesResponse, 
-    User
-};
+use crate::domain::models::user::{AddApplicationDto, CreateUserDto, UpdateUserDto, CreateFeedbackRespiratoryDiseasesDto, FeedbackRespiratoryDiseasesResponse, CreateFeedbackTuberculosisDto, User, FeedbackTuberculosisResponse};
 
 #[async_trait]
 pub trait UserRepository: Send + Sync + 'static {
@@ -21,5 +14,7 @@ pub trait UserRepository: Send + Sync + 'static {
     async fn delete_application(&self, id: Uuid, application_name: &str) -> Result<bool, sqlx::Error>;
     async fn add_application(&self, id: Uuid, applications: AddApplicationDto) -> Result<Option<User>, sqlx::Error>;
     async fn create_feedback_respiratory_diseases(&self, feedback: CreateFeedbackRespiratoryDiseasesDto) -> Result<Option<FeedbackRespiratoryDiseasesResponse>, sqlx::Error>;
-    async fn find_all_feedbacks(&self) -> Result<Vec<FeedbackRespiratoryDiseasesResponse>, sqlx::Error>;
+    async fn find_all_feedbacks_respiratory_diseases(&self) -> Result<Vec<FeedbackRespiratoryDiseasesResponse>, sqlx::Error>;
+    async fn create_feedback_tuberculosis(&self, feedback_tuberculosis: CreateFeedbackTuberculosisDto) -> Result<Option<FeedbackTuberculosisResponse>, sqlx::Error>;
+    async fn find_all_feedbacks_tuberculosis(&self) -> Result<Vec<FeedbackTuberculosisResponse>, sqlx::Error>;
 }

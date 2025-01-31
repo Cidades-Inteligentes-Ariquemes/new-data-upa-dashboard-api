@@ -1,13 +1,15 @@
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::{PgPool};
 use uuid::Uuid;
 use crate::domain::models::user::{
-    CreateUserDto, 
-    UpdateUserDto, 
+    CreateUserDto,
+    UpdateUserDto,
     AddApplicationDto,
     CreateFeedbackRespiratoryDiseasesDto,
-    FeedbackRespiratoryDiseasesResponse, 
-    User
+    FeedbackRespiratoryDiseasesResponse,
+    User,
+    CreateFeedbackTuberculosisDto,
+    FeedbackTuberculosisResponse
 };
 use crate::domain::repositories::user::UserRepository;
 
@@ -53,7 +55,7 @@ impl UserRepository for PgUserRepository {
         }).collect())
     }
 
-    async fn find_all_feedbacks(&self) -> Result<Vec<FeedbackRespiratoryDiseasesResponse>, sqlx::Error> {
+    async fn find_all_feedbacks_respiratory_diseases(&self) -> Result<Vec<FeedbackRespiratoryDiseasesResponse>, sqlx::Error> {
         let feedbacks = sqlx::query!(
             r#"
             SELECT
@@ -75,6 +77,27 @@ impl UserRepository for PgUserRepository {
             feedback: row.feedback,
             prediction_made: row.prediction_made,
             correct_prediction: row.correct_prediction
+        }).collect())
+    }
+
+    async fn find_all_feedbacks_tuberculosis(&self) -> Result<Vec<FeedbackTuberculosisResponse>, sqlx::Error> {
+        let feedbacks_tuberculosis = sqlx::query!(
+            r#"
+            SELECT
+               id,
+               user_name,
+               feedback
+            FROM feedback_tuberculosis
+            ORDER BY user_name
+            "#
+        )
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(feedbacks_tuberculosis.into_iter().map(|row | FeedbackTuberculosisResponse {
+            id: row.id,
+            user_name: row.user_name,
+            feedback: row.feedback
         }).collect())
     }
 
@@ -350,6 +373,39 @@ impl UserRepository for PgUserRepository {
             feedback: feedback.feedback,
             prediction_made: feedback.prediction_made,
             correct_prediction: feedback.correct_prediction,
+        }))
+    }
+
+    async fn create_feedback_tuberculosis(
+        &self,
+        feedback_tuberculosis: CreateFeedbackTuberculosisDto
+    ) -> Result<Option<FeedbackTuberculosisResponse>, sqlx::Error> {
+        let id = Uuid::new_v4();
+        let created_at = chrono::Utc::now().naive_utc();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO feedback_tuberculosis (
+                id,
+                user_name,
+                feedback,
+                created_at
+            )
+            VALUES ($1, $2, $3, $4)
+            RETURNING id
+            "#,
+            id,
+            feedback_tuberculosis.user_name,
+            feedback_tuberculosis.feedback,
+            created_at
+        )
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(Some(FeedbackTuberculosisResponse {
+            id,
+            user_name: feedback_tuberculosis.user_name,
+            feedback: feedback_tuberculosis.feedback,
         }))
     }
 }
