@@ -99,3 +99,10 @@ pub async fn get_feedbacks(
 ) -> Result<HttpResponse, AppError> {
     service.get_feedbacks().await
 }
+
+pub async fn send_verification_code(
+    service: web::Data<UserService>,
+    email: web::Path<String>,
+) -> Result<HttpResponse, AppError> {
+    service.send_verification_code(email.into_inner()).await
+}

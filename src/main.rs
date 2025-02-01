@@ -52,6 +52,7 @@ async fn main() -> std::io::Result<()> {
    let user_service = web::Data::new(UserService::new(
        user_repository.clone(),
        password_encryptor.clone(),
+       web::Data::new(config.clone()),
    ));
 
    let auth_service = web::Data::new(AuthService::new(
@@ -60,7 +61,7 @@ async fn main() -> std::io::Result<()> {
        Box::new(Argon2PasswordEncryptor::new()),
        Box::new(JwtTokenGenerator::new()),
    ));
-   
+
    let server_addr = config.server_addr.clone();
    info!("Server será iniciado em: http://{}", server_addr);
 

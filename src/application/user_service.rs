@@ -22,18 +22,22 @@ use crate::{
     utils::validators::{is_valid_email, validate_applications, validate_profile, validate_respiratory_diseases, validate_feedbacks},
 };
 use crate::infrastructure::repositories::user_repository::PgUserRepository;
+use crate::infrastructure::email::email_service::SmtpEmailService;
 use crate::adapters::password::PasswordEncryptorPort;
 use crate::domain::models::user::{FeedbackRespiratoryDiseasesResponse};
 use crate::utils::validators::{ALLOWED_RESPIRATORY_DISEASES};
+use crate::domain::email::email_service::EmailService;
+use crate::utils::config_env::Config;
 
 pub struct UserService {
     repo: web::Data<PgUserRepository>,
     password_encryptor: Box<dyn PasswordEncryptorPort>,
+    config: web::Data<Config>
 }
 
 impl UserService {
-    pub fn new(repo: web::Data<PgUserRepository>, password_encryptor: Box<dyn PasswordEncryptorPort>) -> Self {
-        Self { repo, password_encryptor }
+    pub fn new(repo: web::Data<PgUserRepository>, password_encryptor: Box<dyn PasswordEncryptorPort>, config: web::Data<Config>) -> Self {
+        Self { repo, password_encryptor, config }
     }
 
     pub async fn get_users(&self) -> Result<HttpResponse, AppError> {
@@ -462,6 +466,30 @@ impl UserService {
                 error!("Error fetching feedbacks: {:?}", e);
                 Err(AppError::InternalServerError)
             }
+        }
+    }
+
+    pub async fn send_verification_code(&self, email: String) -> Result<HttpResponse, AppError> {
+        match self.repo.find_by_email(&email).await {
+            Ok(user) => {
+                let verification_code = format!("{:06}", rand::random::<u32>() % 1000000);
+                println!("Sending verification code================: {}", verification_code);
+                // Envia o email com o código
+                let email_service = SmtpEmailService::new(self.config.clone());
+
+                match email_service.send_email(
+                    user.unwrap().full_name,
+                    email,
+                    verification_code,
+                ).await {
+                    Ok(true) => Ok(ApiResponse::success(json!({
+                    "message": "Código de verificação enviado com sucesso"
+                })).into_response()),
+                    Ok(false) => Err(AppError::InternalServerError),
+                    Err(_) => Err(AppError::InternalServerError),
+                }
+            },
+            Err(_) => Err(AppError::BadRequest("Usuário não encontrado".into())),
         }
     }
     
