@@ -1,16 +1,7 @@
 use async_trait::async_trait;
 use sqlx::{PgPool};
 use uuid::Uuid;
-use crate::domain::models::user::{
-    CreateUserDto,
-    UpdateUserDto,
-    AddApplicationDto,
-    CreateFeedbackRespiratoryDiseasesDto,
-    FeedbackRespiratoryDiseasesResponse,
-    User,
-    CreateFeedbackTuberculosisDto,
-    FeedbackTuberculosisResponse
-};
+use crate::domain::models::user::{CreateUserDto, UpdateUserDto, AddApplicationDto, CreateFeedbackRespiratoryDiseasesDto, FeedbackRespiratoryDiseasesResponse, User, CreateFeedbackTuberculosisDto, FeedbackTuberculosisResponse, UpdateEnabledUserDto};
 use crate::domain::repositories::user::UserRepository;
 
 pub struct PgUserRepository {
@@ -264,6 +255,22 @@ impl UserRepository for PgUserRepository {
         .execute(&self.pool)
         .await?;
     
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn update_enabled(&self, id: Uuid, enabled: UpdateEnabledUserDto) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE users_api
+            SET enabled = $1
+            WHERE id = $2
+            "#,
+            enabled.enabled,
+            id
+        )
+        .execute(&self.pool)
+        .await?;
+
         Ok(result.rows_affected() > 0)
     }
 

@@ -42,6 +42,11 @@ pub struct UpdatePasswordByUserCommonDto {
     pub new_password: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateEnabledUserDto {
+    pub enabled: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct UserResponse {
     pub id: Uuid,

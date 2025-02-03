@@ -46,6 +46,10 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::resource("/{id}/update-password-by-user-common")
                     .route(web::patch().to(user_handler::update_password_by_user_common))
-            )      
+            )
+            .service(
+                web::resource("/{id}/update-enabled")
+                    .route(web::patch().to(user_handler::update_enabled))
+            )
     );
 }

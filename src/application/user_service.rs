@@ -24,7 +24,7 @@ use crate::{
 use crate::infrastructure::repositories::user_repository::PgUserRepository;
 use crate::infrastructure::email::email_service::SmtpEmailService;
 use crate::adapters::password::PasswordEncryptorPort;
-use crate::domain::models::user::{FeedbackRespiratoryDiseasesResponse};
+use crate::domain::models::user::{FeedbackRespiratoryDiseasesResponse, UpdateEnabledUserDto};
 use crate::utils::validators::{ALLOWED_RESPIRATORY_DISEASES};
 use crate::domain::email::email_service::EmailService;
 use crate::utils::config_env::Config;
@@ -253,6 +253,25 @@ impl UserService {
             Ok(false) => Ok(ApiResponse::<()>::user_not_found().into_response()),
             Err(e) => {
                 error!("Error updating password: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn update_enabled(&self, id: Uuid, enabled: UpdateEnabledUserDto) -> Result<HttpResponse, AppError> {
+
+        // Verifica se o usuario existe
+        if self.repo.find_by_id(id).await.unwrap().is_none() {
+            return Err(AppError::BadRequest(
+                format!("Error deleting user: user with id '{}' not found", id)
+            ));
+        }
+
+        match self.repo.update_enabled(id, enabled).await {
+            Ok(true) => Ok(ApiResponse::<()>::updated_enabled().into_response()),
+            Ok(false) => Ok(ApiResponse::<()>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error updating user: {:?}", e);
                 Err(AppError::InternalServerError)
             }
         }

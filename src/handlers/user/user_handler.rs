@@ -14,6 +14,7 @@ use crate::{
     },
     AppError,
 };
+use crate::domain::models::user::UpdateEnabledUserDto;
 
 pub async fn get_users(service: web::Data<UserService>) -> Result<HttpResponse, AppError> {
     service.get_users().await
@@ -62,6 +63,14 @@ pub async fn update_password_by_user_common(
     passwords: web::Json<UpdatePasswordByUserCommonDto>,
 ) -> Result<HttpResponse, AppError> {
     service.update_password_by_user_common(id.into_inner(), passwords.into_inner()).await
+}
+
+pub async fn update_enabled(
+    service: web::Data<UserService>,
+    id: web::Path<Uuid>,
+    enabled: web::Json<UpdateEnabledUserDto>
+) -> Result<HttpResponse, AppError> {
+    service.update_enabled(id.into_inner(), enabled.into_inner()).await
 }
 
 pub async fn add_application(
