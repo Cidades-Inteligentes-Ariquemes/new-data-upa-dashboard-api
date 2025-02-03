@@ -28,7 +28,6 @@ pub struct UpdateUserDto {
     pub email: String,
     pub profile: String,
     pub allowed_applications: Vec<String>,
-    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize)]

@@ -217,9 +217,8 @@ impl UserRepository for PgUserRepository {
                     full_name = $1,
                     email = $2,
                     profile = $3,
-                    allowed_applications = $4,
-                    enabled = $5
-                WHERE id = $6
+                    allowed_applications = $4
+                WHERE id = $5
                 RETURNING
                     id,
                     full_name,
@@ -233,7 +232,6 @@ impl UserRepository for PgUserRepository {
                 user.email,
                 user.profile,
                 &user.allowed_applications as &[String],
-                user.enabled,
                 id
             )
                 .fetch_one(&self.pool)

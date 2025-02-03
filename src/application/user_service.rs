@@ -140,8 +140,7 @@ impl UserService {
             ("full_name", user.full_name.is_empty()),
             ("email", user.email.is_empty()),
             ("profile", user.profile.is_empty()),
-            ("allowed_applications", user.allowed_applications.is_empty()),
-            ("enabled", !user.enabled),
+            ("allowed_applications", user.allowed_applications.is_empty())
         ];
 
         for (field_name, is_none) in validations {
@@ -472,18 +471,21 @@ impl UserService {
     pub async fn send_verification_code(&self, email: String) -> Result<HttpResponse, AppError> {
         match self.repo.find_by_email(&email).await {
             Ok(user) => {
+                if user.as_ref().unwrap().enabled == false {
+                    return Err(AppError::BadRequest("User is disabled".into()));
+                }
                 let verification_code = format!("{:06}", rand::random::<u32>() % 1000000);
-                println!("Sending verification code================: {}", verification_code);
+
                 // Envia o email com o código
                 let email_service = SmtpEmailService::new(self.config.clone());
 
                 match email_service.send_email(
-                    user.unwrap().full_name,
+                    user.unwrap().full_name.clone(),
                     email,
-                    verification_code,
+                    verification_code.clone(),
                 ).await {
                     Ok(true) => Ok(ApiResponse::success(json!({
-                    "message": "Código de verificação enviado com sucesso"
+                    "code": verification_code.clone(),
                 })).into_response()),
                     Ok(false) => Err(AppError::InternalServerError),
                     Err(_) => Err(AppError::InternalServerError),
