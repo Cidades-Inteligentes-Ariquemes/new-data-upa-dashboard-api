@@ -1,33 +1,51 @@
 use std::collections::HashMap;
 use actix_web::{web, HttpResponse};
-use uuid::Uuid;
-use log::error;
+use log::{error, info};
 use serde_json::json;
-use crate::{
-    domain::{
-        models::user::{
-            CreateUserDto, 
-            UpdatePasswordByAdminDto, 
-            UpdatePasswordByUserCommonDto, 
-            UpdateUserDto, AddApplicationDto, 
-            UserResponse,
-            CreateFeedbackRespiratoryDiseasesDto,
-            CreateFeedbackTuberculosisDto,
-            DiseaseStats
-        },
-        repositories::user::UserRepository,
-    },
-    utils::response::ApiResponse,
-    AppError,
-    utils::validators::{is_valid_email, validate_applications, validate_profile, validate_respiratory_diseases, validate_feedbacks},
-};
-use crate::infrastructure::repositories::user_repository::PgUserRepository;
-use crate::infrastructure::email::email_service::SmtpEmailService;
+use uuid::Uuid;
+
 use crate::adapters::password::PasswordEncryptorPort;
-use crate::domain::models::user::{FeedbackRespiratoryDiseasesResponse, UpdateEnabledUserDto};
-use crate::utils::validators::{ALLOWED_RESPIRATORY_DISEASES};
-use crate::domain::email::email_service::EmailService;
-use crate::utils::config_env::Config;
+
+use crate::domain::{
+    email::email_service::EmailService,
+    models::user::{
+        AddApplicationDto,
+        CreateFeedbackRespiratoryDiseasesDto,
+        CreateFeedbackTuberculosisDto,
+        CreateUserDto,
+        DiseaseStats,
+        FeedbackRespiratoryDiseasesResponse,
+        UpdateEnabledUserDto,
+        UpdatePasswordByAdminDto,
+        UpdatePasswordByUserCommonDto,
+        UpdateUserDto,
+        UpdateVerificationCodeDto,
+        AddVerificationCodeDto,
+        UserResponse,
+    },
+    repositories::user::UserRepository,
+};
+
+use crate::infrastructure::{
+    email::email_service::SmtpEmailService,
+    repositories::user_repository::PgUserRepository,
+};
+
+use crate::utils::{
+    config_env::Config,
+    response::ApiResponse,
+    validators::{
+        is_valid_email,
+        validate_applications,
+        validate_feedbacks,
+        validate_profile,
+        validate_respiratory_diseases,
+        ALLOWED_RESPIRATORY_DISEASES,
+    },
+};
+
+use crate::AppError;
+use crate::domain::models::user::{IdVerificationDto};
 
 pub struct UserService {
     repo: web::Data<PgUserRepository>,
@@ -488,30 +506,126 @@ impl UserService {
     }
 
     pub async fn send_verification_code(&self, email: String) -> Result<HttpResponse, AppError> {
-        match self.repo.find_by_email(&email).await {
-            Ok(user) => {
-                if user.as_ref().unwrap().enabled == false {
-                    return Err(AppError::BadRequest("User is disabled".into()));
-                }
-                let verification_code = format!("{:06}", rand::random::<u32>() % 1000000);
 
-                // Envia o email com o código
-                let email_service = SmtpEmailService::new(self.config.clone());
-
-                match email_service.send_email(
-                    user.unwrap().full_name.clone(),
-                    email,
-                    verification_code.clone(),
-                ).await {
-                    Ok(true) => Ok(ApiResponse::success(json!({
-                    "code": verification_code.clone(),
-                })).into_response()),
-                    Ok(false) => Err(AppError::InternalServerError),
-                    Err(_) => Err(AppError::InternalServerError),
-                }
-            },
-            Err(_) => Err(AppError::BadRequest("Usuário não encontrado".into())),
+        // Validação de email
+        if !is_valid_email(&email) {
+            return Err(AppError::BadRequest(
+                format!("Error adding user: '{}' is not a valid email", email)
+            ));
         }
+
+        let user = match self.repo.find_by_email(&email).await {
+            Ok(Some(user)) => user,
+            Ok(None) => return Err(AppError::BadRequest("User not found".to_string())),
+            Err(_) => return Err(AppError::InternalServerError)
+        };
+
+        if !user.enabled {
+            return Err(AppError::BadRequest("User disabled".to_string()))
+        }
+
+        let verification_code = format!("{:06}", rand::random::<u32>() % 1000000);
+        let email_service = SmtpEmailService::new(self.config.clone());
+
+        // Tenta enviar o email primeiro
+        if let Err(e) = email_service.send_email(
+            user.full_name.clone(),
+            email,
+            verification_code.clone(),
+        ).await {
+            error!("Failed to send email: {:?}", e);
+            return Err(AppError::InternalServerError);
+        }
+
+        //Criar o json para enviar para o banco as informaçoes
+
+        let data = AddVerificationCodeDto {
+            id: Uuid::new_v4(),
+            user_id: user.id,
+            user_email: user.email,
+            code_verification: verification_code.parse().unwrap(),
+            used: false,
+            created_at: chrono::Utc::now().naive_utc(),
+            expiration_at: chrono::Utc::now().naive_utc() + chrono::Duration::minutes(10),
+        };
+
+        match self.repo.add_verification_code(data).await {
+            Ok(data) => Ok(ApiResponse::created(data).into_response()),
+            Err(e) => {
+                error!("Error creating verification code: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+
+    }
+
+    pub async fn resend_verification_code(&self, email: String, id_verification: IdVerificationDto) -> Result<HttpResponse, AppError> {
+        // Validação de email
+        if !is_valid_email(&email) {
+            return Err(AppError::BadRequest(
+                format!("Error adding user: '{}' is not a valid email", email)
+            ));
+        }
+
+        // Verifica se o usuario existe
+        let user = match self.repo.find_by_email(&email).await {
+            Ok(Some(user)) => user,
+            Ok(None) => return Err(AppError::BadRequest("User not found".to_string())),
+            Err(_) => return Err(AppError::InternalServerError)
+        };
+
+        //Verifica se o código existe no banco
+        let code_exists = match self.repo.verify_code_exist(id_verification.id_verification).await {
+            Ok(code) => code,
+            Err(e) => {
+                error!("Database error: {:?}", e);
+                return Err(AppError::InternalServerError);
+            }
+        };
+
+        let now = chrono::Utc::now().naive_utc();
+
+        // Se código expirado ou usado, gera novo
+        if code_exists.used || code_exists.expiration_at < now {
+            info!("Code expired, already used, or not found. Generating a new one.");
+            return self.send_verification_code(email).await;
+        }
+
+        // Define qual código será usado (existente ou novo)
+        let verification_code = if code_exists.expiration_at >= now && !code_exists.used {
+            info!("Code valid and not used. Resending the same code.");
+            code_exists.verification_code
+        } else {
+            info!("Generating a new verification code.");
+            format!("{:06}", rand::random::<u32>() % 1000000).parse().unwrap()
+        };
+
+        // Envia o email
+        let email_service = SmtpEmailService::new(self.config.clone());
+        if let Err(e) = email_service.send_email(
+            user.full_name.clone(),
+            email.clone(),
+            verification_code.clone().to_string(),
+        ).await {
+            error!("Error sending email: {:?}", e);
+            return Err(AppError::InternalServerError);
+        }
+
+        // Atualiza o código no banco
+        let updated_code = UpdateVerificationCodeDto {
+            verification_code,
+            expiration_at: now + chrono::Duration::minutes(10),
+            used: false,
+        };
+
+        match self.repo.update_code_verification(updated_code, email, id_verification.id_verification).await {
+            Ok(updated) => Ok(ApiResponse::success(updated).into_response()),
+            Err(e) => {
+                error!("Error updating verification code: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+
     }
     
 }

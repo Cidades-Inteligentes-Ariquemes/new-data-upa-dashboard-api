@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -110,6 +111,46 @@ pub struct ProcessedFeedbackResponse {
     pub covid_19: DiseaseStats,
     pub pneumonia_viral: DiseaseStats,
     pub pneumonia_bacteriana: DiseaseStats,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AddVerificationCodeDto {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub user_email: String,
+    pub code_verification: i32,
+    pub used: bool,
+    pub created_at: NaiveDateTime,
+    pub expiration_at: NaiveDateTime,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AddVerificationCodeResponse {
+    pub id_verification: Uuid,
+    pub user_id: Uuid,
+    pub email: String,
+    pub verification_code: i32,
+    pub used: bool,
+    pub created_at: NaiveDateTime,
+    pub expiration_at: NaiveDateTime,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct IdVerificationDto {
+    pub id_verification: Uuid,
+}
+
+impl From<IdVerificationDto> for Uuid {
+    fn from(dto: IdVerificationDto) -> Self {
+        dto.id_verification
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateVerificationCodeDto {
+    pub verification_code: i32,
+    pub expiration_at: NaiveDateTime,
+    pub used: bool,
 }
 
 impl From<User> for UserResponse {

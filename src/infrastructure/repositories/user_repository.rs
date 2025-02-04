@@ -1,7 +1,20 @@
 use async_trait::async_trait;
 use sqlx::{PgPool};
 use uuid::Uuid;
-use crate::domain::models::user::{CreateUserDto, UpdateUserDto, AddApplicationDto, CreateFeedbackRespiratoryDiseasesDto, FeedbackRespiratoryDiseasesResponse, User, CreateFeedbackTuberculosisDto, FeedbackTuberculosisResponse, UpdateEnabledUserDto};
+use crate::domain::models::user::{
+    CreateUserDto,
+    UpdateUserDto,
+    AddApplicationDto,
+    CreateFeedbackRespiratoryDiseasesDto,
+    FeedbackRespiratoryDiseasesResponse,
+    User,
+    CreateFeedbackTuberculosisDto,
+    FeedbackTuberculosisResponse,
+    UpdateEnabledUserDto,
+    AddVerificationCodeDto,
+    AddVerificationCodeResponse,
+    UpdateVerificationCodeDto,
+};
 use crate::domain::repositories::user::UserRepository;
 
 pub struct PgUserRepository {
@@ -412,5 +425,121 @@ impl UserRepository for PgUserRepository {
             user_name: feedback_tuberculosis.user_name,
             feedback: feedback_tuberculosis.feedback,
         }))
+    }
+
+    async fn add_verification_code(
+        &self,
+        data: AddVerificationCodeDto
+    ) -> Result<AddVerificationCodeResponse, sqlx::Error> {
+
+        sqlx::query!(
+            r#"
+            INSERT INTO forgot_password (
+                id,
+                user_id,
+                user_email,
+                code_verification,
+                used,
+                created_at,
+                expiration_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id
+            "#,
+            data.id,
+            data.user_id,
+            data.user_email,
+            data.code_verification,
+            data.used,
+            data.created_at,
+            data.expiration_at
+        )
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(AddVerificationCodeResponse {
+            id_verification: data.id,
+            user_id: data.user_id,
+            email: data.user_email,
+            verification_code: data.code_verification,
+            used: data.used,
+            created_at: data.created_at,
+            expiration_at: data.expiration_at,
+        })
+
+    }
+
+    async fn verify_code_exist(&self, id: Uuid) -> Result<AddVerificationCodeResponse, sqlx::Error> {
+        let data = sqlx::query!(
+        r#"
+        SELECT
+            id,
+            user_id,
+            user_email,
+            code_verification,
+            used,
+            created_at,
+            expiration_at
+        FROM forgot_password
+        WHERE id = $1
+        "#,
+        id
+    )
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(sqlx::Error::RowNotFound)?;
+
+        Ok(AddVerificationCodeResponse {
+            id_verification: data.id,
+            user_id: data.user_id,
+            email: data.user_email,
+            verification_code: data.code_verification,
+            used: data.used,
+            created_at: data.created_at,
+            expiration_at: data.expiration_at.unwrap(),
+        })
+    }
+
+    async fn update_code_verification(
+        &self,
+        code: UpdateVerificationCodeDto,
+        email: String,
+        id_verification: Uuid
+    ) -> Result<AddVerificationCodeResponse, sqlx::Error> {
+        let updated = sqlx::query!(
+        r#"
+        UPDATE forgot_password
+        SET
+            code_verification = $1,
+            expiration_at = $2,
+            used = $3
+        WHERE id = $4 AND user_email = $5
+        RETURNING
+            id,
+            user_id,
+            user_email,
+            code_verification,
+            used,
+            created_at,
+            expiration_at
+        "#,
+        code.verification_code,
+        code.expiration_at,
+        code.used,
+        id_verification,
+        email
+    )
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(AddVerificationCodeResponse {
+            id_verification: updated.id,
+            user_id: updated.user_id,
+            email: updated.user_email,
+            verification_code: updated.code_verification,
+            used: updated.used,
+            created_at: updated.created_at,
+            expiration_at: updated.expiration_at.unwrap(),
+        })
     }
 }

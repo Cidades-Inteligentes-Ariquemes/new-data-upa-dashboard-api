@@ -90,9 +90,25 @@ impl<T: Serialize> ApiResponse<T> {
         }
     }
 
+    pub fn resent_code_success() -> Self {
+        Self {
+            message: "Verification code resent successfully".to_string(),
+            status_code: StatusCode::OK,
+            data: None,
+        }
+    }
+
     pub fn application_not_found() -> Self {
         Self {
             message: "Application not found".to_string(),
+            status_code: StatusCode::NOT_FOUND,
+            data: None,
+        }
+    }
+
+    pub fn code_not_found() -> Self {
+        Self {
+            message: "code not found".to_string(),
             status_code: StatusCode::NOT_FOUND,
             data: None,
         }

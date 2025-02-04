@@ -9,7 +9,10 @@ use crate::domain::models::user::{
     CreateFeedbackTuberculosisDto,
     User,
     FeedbackTuberculosisResponse,
-    UpdateEnabledUserDto
+    UpdateEnabledUserDto,
+    AddVerificationCodeDto,
+    AddVerificationCodeResponse,
+    UpdateVerificationCodeDto,
 };
 
 #[async_trait]
@@ -28,4 +31,7 @@ pub trait UserRepository: Send + Sync + 'static {
     async fn find_all_feedbacks_respiratory_diseases(&self) -> Result<Vec<FeedbackRespiratoryDiseasesResponse>, sqlx::Error>;
     async fn create_feedback_tuberculosis(&self, feedback_tuberculosis: CreateFeedbackTuberculosisDto) -> Result<Option<FeedbackTuberculosisResponse>, sqlx::Error>;
     async fn find_all_feedbacks_tuberculosis(&self) -> Result<Vec<FeedbackTuberculosisResponse>, sqlx::Error>;
+    async fn add_verification_code(&self, data:AddVerificationCodeDto) -> Result<AddVerificationCodeResponse, sqlx::Error>;
+    async fn verify_code_exist(&self, id: Uuid) -> Result<AddVerificationCodeResponse, sqlx::Error>;
+    async fn update_code_verification(&self, code: UpdateVerificationCodeDto, email: String, id_verification: Uuid,) -> Result<AddVerificationCodeResponse, sqlx::Error>;
 }
