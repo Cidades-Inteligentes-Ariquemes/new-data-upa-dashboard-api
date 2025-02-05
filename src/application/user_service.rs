@@ -524,14 +524,23 @@ impl UserService {
             return Err(AppError::BadRequest("User disabled".to_string()))
         }
 
-        let verification_code = format!("{:06}", rand::random::<u32>() % 1000000);
+        //Gera o codigo e caso tenha zeros à esquerda, retira eles
+        let verification_code = format!("{:06}", rand::random::<u32>() % 1000000)
+            .trim_start_matches('0')
+            .to_string();
+
+        let final_code = if verification_code.is_empty() {
+            "0".to_string()
+        } else {
+            verification_code
+        };
         let email_service = SmtpEmailService::new(self.config.clone());
 
         // Tenta enviar o email primeiro
         if let Err(e) = email_service.send_email(
             user.full_name.clone(),
             email,
-            verification_code.clone(),
+            final_code.clone(),
         ).await {
             error!("Failed to send email: {:?}", e);
             return Err(AppError::InternalServerError);
@@ -543,7 +552,7 @@ impl UserService {
             id: Uuid::new_v4(),
             user_id: user.id,
             user_email: user.email,
-            code_verification: verification_code.parse().unwrap(),
+            code_verification: final_code.parse().unwrap(),
             used: false,
             created_at: chrono::Utc::now().naive_utc(),
             expiration_at: chrono::Utc::now().naive_utc() + chrono::Duration::minutes(10),
@@ -597,7 +606,17 @@ impl UserService {
             code_exists.verification_code
         } else {
             info!("Generating a new verification code.");
-            format!("{:06}", rand::random::<u32>() % 1000000).parse().unwrap()
+            let new_code = format!("{:06}", rand::random::<u32>() % 1000000)
+                .trim_start_matches('0')
+                .to_string();
+
+            let final_code = if new_code.is_empty() {
+                "0".to_string()
+            } else {
+                new_code
+            };
+
+            final_code.parse().unwrap()
         };
 
         // Envia o email
