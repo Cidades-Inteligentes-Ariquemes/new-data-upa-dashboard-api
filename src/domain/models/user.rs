@@ -159,6 +159,12 @@ pub struct ConfirmVerificationCodeDto {
     pub id_verification: Uuid,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdatePasswordForgettingUserDto {
+    pub new_password: String,
+    pub id_verification: Uuid,
+}
+
 impl From<User> for UserResponse {
     fn from(user: User) -> Self {
         Self {

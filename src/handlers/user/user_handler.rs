@@ -13,6 +13,7 @@ use crate::{
         CreateFeedbackTuberculosisDto,
         IdVerificationDto,
         ConfirmVerificationCodeDto,
+        UpdatePasswordForgettingUserDto,
     },
     AppError,
 };
@@ -131,4 +132,12 @@ pub async fn confirm_verification_code(
     data: web::Json<ConfirmVerificationCodeDto>,
 ) -> Result<HttpResponse, AppError> {
     service.confirm_verification_code(data.into_inner()).await
+}
+
+pub async fn update_password_for_forgetting_user(
+    service: web::Data<UserService>,
+    user_id: web::Path<Uuid>,
+    data: web::Json<UpdatePasswordForgettingUserDto>,
+) -> Result<HttpResponse, AppError> {
+    service.update_password_for_forgetting_user(user_id.into_inner(), data.into_inner()).await
 }

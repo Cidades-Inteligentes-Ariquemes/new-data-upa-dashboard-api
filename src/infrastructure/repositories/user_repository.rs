@@ -578,4 +578,20 @@ impl UserRepository for PgUserRepository {
             expiration_at: updated.expiration_at.unwrap(),
         })
     }
+
+    async fn update_password_for_forgetting_user(&self, user_id: Uuid, new_password: String) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE users_api
+            SET password = $1
+            WHERE id = $2
+            "#,
+            new_password,
+            user_id
+        )
+            .execute(&self.pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
 }

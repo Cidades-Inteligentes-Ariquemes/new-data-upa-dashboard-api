@@ -22,6 +22,7 @@ use crate::domain::{
         UpdateVerificationCodeDto,
         AddVerificationCodeDto,
         ConfirmVerificationCodeDto,
+        UpdatePasswordForgettingUserDto,
         UserResponse,
     },
     repositories::user::UserRepository,
@@ -677,7 +678,42 @@ impl UserService {
                 return Err(AppError::BadRequest(format!("Failed to update verification code: {:?}", e)));
             }
         }
+    }
 
+    pub async fn update_password_for_forgetting_user(&self, user_id: Uuid, data: UpdatePasswordForgettingUserDto) -> Result<HttpResponse, AppError> {
+        //Verifica se o usuário existe
+        match self.repo.find_by_id(user_id.clone()).await {
+            Ok(Some(_)) => (),
+            Ok(None) => return Err(AppError::BadRequest("User not found".to_string())),
+            Err(_) => return Err(AppError::InternalServerError)
+        };
+
+        //Verifica se existe codigo para o id verification enviado
+        let code_exist = match self.repo.verify_code_exist(data.id_verification.clone()).await {
+            Ok(code) => code,
+            Err(e) => {
+                error!("Database error: {:?}", e);
+                return Err(AppError::BadRequest("Id verification not found".to_string()));
+            }
+        };
+
+        //Verifica se o codigo já foi confirmado pelo usuário
+        if !code_exist.used {
+            return Err(AppError::BadRequest("Code not verified".to_string()));
+        }
+
+        // Faz o encrypt da nova senha
+        let new_password_hash = self.password_encryptor
+            .hash_password(&data.new_password)
+            .map_err(|_| AppError::InternalServerError)?;
+
+        match self.repo.update_password_for_forgetting_user(user_id, new_password_hash.clone()).await {
+            Ok(updated_password_hash) => Ok(ApiResponse::success(updated_password_hash).into_response()),
+            Err(e) => {
+                error!("Error updating verification code: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
     }
     
 }

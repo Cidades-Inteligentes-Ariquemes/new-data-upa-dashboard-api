@@ -35,4 +35,5 @@ pub trait UserRepository: Send + Sync + 'static {
     async fn verify_code_exist(&self, id: Uuid) -> Result<AddVerificationCodeResponse, sqlx::Error>;
     async fn update_code_verification(&self, code: UpdateVerificationCodeDto, email: String, id_verification: Uuid,) -> Result<AddVerificationCodeResponse, sqlx::Error>;
     async fn update_used_verification_code(&self, id_verification: Uuid) -> Result<AddVerificationCodeResponse, sqlx::Error>;
+    async fn update_password_for_forgetting_user(&self, user_id: Uuid, new_password: String) -> Result<bool, sqlx::Error>;
 }
