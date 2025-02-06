@@ -8,6 +8,7 @@ use jsonwebtoken::{decode, DecodingKey, Validation};
 
 use crate::domain::models::auth::Claims;
 use crate::utils::config_env::Config;
+use crate::utils::validators::is_public_route;
 
 // 1. Estrutura principal do Middleware
 pub struct AuthMiddleware;
@@ -56,7 +57,7 @@ where
     fn call(&self, req: ServiceRequest) -> Self::Future {
         // 5. Bypass para a rota de login
         println!("Hi from start. You requested: {}", req.path());
-        if req.path() == "/api/auth/login" {
+        if is_public_route(&req.path()) {
             let fut = self.service.call(req);
             return Box::pin(async move {
                 let res = fut.await?;

@@ -73,3 +73,15 @@ pub fn validate_feedbacks(feedback: &str) -> Result<(), AppError> {
     }
     Ok(())
 }
+
+pub fn is_public_route(path: &str) -> bool {
+    let public_routes = [
+        "/api/auth/login",
+        "/api/users/send-verification-code/",
+        "/api/users/resend-verification-code/",
+        "/api/users/confirm-verification-code",
+        "/api/users/update-password-for-forgetting-user",
+    ];
+
+    public_routes.iter().any(|route| path.starts_with(route))
+}
