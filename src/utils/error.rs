@@ -14,7 +14,7 @@ pub enum AppError {
     #[display(fmt = "Unauthorized: {}", _0)]
     Unauthorized(String),
 
-    #[display(fmt = "Forbiden: {}", _0)]
+    #[display(fmt = "Forbidden: {}", _0)]
     Forbidden(String)
 }
 

@@ -13,6 +13,10 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .route(web::post().to(user_handler::resend_verification_code))
             )
             .service(
+                web::resource("/confirm-verification-code")
+                    .route(web::post().to(user_handler::confirm_verification_code))
+            )
+            .service(
                 web::resource("/feedback-respiratory-diseases")
                     .route(web::post().to(user_handler::create_feedback_respiratory_diseases))
             )

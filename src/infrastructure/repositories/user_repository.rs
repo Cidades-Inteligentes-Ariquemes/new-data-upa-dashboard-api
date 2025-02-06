@@ -542,4 +542,40 @@ impl UserRepository for PgUserRepository {
             expiration_at: updated.expiration_at.unwrap(),
         })
     }
+
+    async fn update_used_verification_code(
+        &self,
+        id_verification: Uuid
+    ) -> Result<AddVerificationCodeResponse, sqlx::Error> {
+        let updated = sqlx::query!(
+        r#"
+        UPDATE forgot_password
+        SET
+            used = true
+        WHERE id = $1
+        RETURNING
+            id,
+            user_id,
+            user_email,
+            code_verification,
+            used,
+            created_at,
+            expiration_at
+        "#,
+        id_verification,
+
+    )
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(AddVerificationCodeResponse {
+            id_verification: updated.id,
+            user_id: updated.user_id,
+            email: updated.user_email,
+            verification_code: updated.code_verification,
+            used: updated.used,
+            created_at: updated.created_at,
+            expiration_at: updated.expiration_at.unwrap(),
+        })
+    }
 }

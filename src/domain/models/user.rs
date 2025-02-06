@@ -153,6 +153,12 @@ pub struct UpdateVerificationCodeDto {
     pub used: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConfirmVerificationCodeDto {
+    pub verification_code: i32,
+    pub id_verification: Uuid,
+}
+
 impl From<User> for UserResponse {
     fn from(user: User) -> Self {
         Self {

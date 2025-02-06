@@ -21,6 +21,7 @@ use crate::domain::{
         UpdateUserDto,
         UpdateVerificationCodeDto,
         AddVerificationCodeDto,
+        ConfirmVerificationCodeDto,
         UserResponse,
     },
     repositories::user::UserRepository,
@@ -642,6 +643,38 @@ impl UserService {
             Err(e) => {
                 error!("Error updating verification code: {:?}", e);
                 Err(AppError::InternalServerError)
+            }
+        }
+
+    }
+
+    pub async fn confirm_verification_code(&self, data: ConfirmVerificationCodeDto) -> Result<HttpResponse, AppError> {
+        //Verifica se o código existe no banco
+        let code_exists = match self.repo.verify_code_exist(data.id_verification).await {
+            Ok(code_exists) => code_exists,
+            Err(e) => {
+                error!("Database error: {:?}", e);
+                return Err(AppError::BadRequest("Id verification not found".to_string()));
+            }
+        };
+
+        if code_exists.verification_code != data.verification_code {
+            return Err(AppError::BadRequest("Verification code not matched".to_string()));
+        }
+
+        if code_exists.used {
+            return Err(AppError::BadRequest("Code already used".to_string()));
+        }
+
+        if code_exists.expiration_at < chrono::Utc::now().naive_utc() {
+            return Err(AppError::BadRequest("Code expired".to_string()));
+        }
+
+        match self.repo.update_used_verification_code(data.id_verification).await {
+            Ok(updated_used_code) => Ok(ApiResponse::success(updated_used_code).into_response()),
+            Err(e) => {
+                error!("Error updating verification code: {:?}", e);
+                return Err(AppError::BadRequest(format!("Failed to update verification code: {:?}", e)));
             }
         }
 

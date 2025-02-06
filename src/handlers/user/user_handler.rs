@@ -12,6 +12,7 @@ use crate::{
         CreateFeedbackRespiratoryDiseasesDto,
         CreateFeedbackTuberculosisDto,
         IdVerificationDto,
+        ConfirmVerificationCodeDto,
     },
     AppError,
 };
@@ -123,4 +124,11 @@ pub async fn resend_verification_code(
     id_verification: web::Json<IdVerificationDto>,
 ) -> Result<HttpResponse, AppError> {
     service.resend_verification_code(email.into_inner(), id_verification.into_inner()).await
+}
+
+pub async fn confirm_verification_code(
+    service: web::Data<UserService>,
+    data: web::Json<ConfirmVerificationCodeDto>,
+) -> Result<HttpResponse, AppError> {
+    service.confirm_verification_code(data.into_inner()).await
 }
