@@ -3,7 +3,7 @@ use actix_web::{
     error::ErrorUnauthorized,
     Error, HttpMessage,
 };
-use futures::future::{ready, LocalBoxFuture, Ready};
+use futures::future::{err, ready, LocalBoxFuture, Ready};
 use jsonwebtoken::{decode, DecodingKey, Validation};
 
 use crate::domain::models::auth::Claims;
@@ -54,7 +54,23 @@ where
 
     // Método principal que processa cada requisição
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        println!("Hi from start. You requested: {}", req.path());
+
+        // Carrega as variaveis de ambiente
+        let config = req.app_data::<actix_web::web::Data<Config>>().unwrap();
+
+        // Verifica a api key
+        let api_key_header = req.headers().get("api_key");
+
+        match api_key_header {
+            Some(api_key_header) => {
+                if api_key_header.to_str().unwrap() != config.api_key {
+                    return Box::pin(err(ErrorUnauthorized("wrong api_key")));
+                }
+            },
+            None => {
+                return Box::pin(async move { Err(ErrorUnauthorized("empty api_key")) });
+            }
+        };
 
         // 1. Primeiro verifica se é rota pública
         if is_public_route(&req.path()) {
@@ -67,7 +83,6 @@ where
 
         // 2. Verifica existência do header de autorização
         let auth_header = req.headers().get("Authorization");
-        let config = req.app_data::<actix_web::web::Data<Config>>().unwrap();
 
         let auth_header = match auth_header {
             Some(header) => header.to_str().unwrap_or_default(),
