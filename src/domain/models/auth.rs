@@ -18,9 +18,12 @@ pub struct LoginResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,
+    pub user_id: String,
     pub exp: usize,
+    pub full_name: String,
+    pub email: String,
     pub profile: String,
+    pub allowed_applications: Vec<String>,
 }
 
 

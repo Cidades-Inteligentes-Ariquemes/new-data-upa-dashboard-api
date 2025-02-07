@@ -64,7 +64,10 @@ impl AuthService {
         let token = self.token_generator
             .generate_token(
                 user.id.to_string(),
+                user.full_name.clone(),
+                user.email.to_string(),
                 user.profile.clone(),
+                user.allowed_applications.clone(),
                 &self.config.jwt_secret,
             )
             .map_err(|_| {
