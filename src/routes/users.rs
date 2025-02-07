@@ -13,6 +13,10 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .route(web::post().to(user_handler::resend_verification_code))
             )
             .service(
+                web::resource("/update-password-for-forgetting-user/{id}")
+                    .route(web::patch().to(user_handler::update_password_for_forgetting_user))
+            )
+            .service(
                 web::resource("/confirm-verification-code")
                     .route(web::post().to(user_handler::confirm_verification_code))
             )
@@ -58,10 +62,6 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::resource("/{id}/update-enabled")
                     .route(web::patch().to(user_handler::update_enabled))
-            )
-            .service(
-                web::resource("/{id}/update-password-for-forgetting-user")
-                    .route(web::patch().to(user_handler::update_password_for_forgetting_user))
             )
 
     );
