@@ -6,7 +6,7 @@ use log::info;
 use new_data_upa_dashboard_api::{
    adapters::{
        password::encryptor::Argon2PasswordEncryptor,
-       token::jwt::JwtTokenGenerator,
+       token::generate_token::JwtTokenGenerator,
    },
    application::{
        auth_service::AuthService,

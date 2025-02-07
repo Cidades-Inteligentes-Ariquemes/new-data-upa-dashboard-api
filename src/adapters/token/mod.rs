@@ -1,2 +1,2 @@
-pub mod jwt;
-pub use jwt::*;
+pub mod generate_token;
+pub use generate_token::*;
