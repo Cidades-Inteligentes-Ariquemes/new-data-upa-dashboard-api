@@ -8,7 +8,7 @@ use jsonwebtoken::{decode, DecodingKey, Validation};
 
 use crate::domain::models::auth::Claims;
 use crate::utils::config_env::Config;
-use crate::utils::validators::is_public_route;
+use crate::utils::validators::{is_public_route, routes_for_users_common};
 
 // 1. Estrutura principal do Middleware
 pub struct AuthMiddleware;
@@ -16,7 +16,7 @@ pub struct AuthMiddleware;
 // 2. Implementação do Transform trait para AuthMiddleware
 impl<S, B> Transform<S, ServiceRequest> for AuthMiddleware
 where
-// Restrições de tipo necessarily para o Service
+// Restrições de tipo necessárias para o Service
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
     B: 'static,
@@ -53,10 +53,10 @@ where
     forward_ready!(service);
 
     // Método principal que processa cada requisição
-
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        // 5. Bypass para a rota de login
         println!("Hi from start. You requested: {}", req.path());
+
+        // 1. Primeiro verifica se é rota pública
         if is_public_route(&req.path()) {
             let fut = self.service.call(req);
             return Box::pin(async move {
@@ -65,7 +65,7 @@ where
             });
         }
 
-        // 6. Extrai e valida o header de autorização
+        // 2. Verifica existência do header de autorização
         let auth_header = req.headers().get("Authorization");
         let config = req.app_data::<actix_web::web::Data<Config>>().unwrap();
 
@@ -78,15 +78,15 @@ where
             }
         };
 
-        // 7. Verifica se é um token Bearer
+        // 3. Verifica formato do token
         if !auth_header.starts_with("Bearer ") {
             return Box::pin(async move {
                 Err(ErrorUnauthorized("Invalid authorization header"))
             });
         }
 
-        // 8. Extrai e valida o token JWT
-        let token = &auth_header[7..]; // Remove "Bearer " do início
+        // 4. Decodifica e valida o token
+        let token = &auth_header[7..];
         let token_data = match decode::<Claims>(
             token,
             &DecodingKey::from_secret(config.jwt_secret.as_bytes()),
@@ -100,10 +100,16 @@ where
             }
         };
 
-        // 9. Adiciona os claims ao request para uso posterior
+        // 5. Verifica permissões
+        if !routes_for_users_common(&req.path()) && token_data.claims.profile != "Administrador" {
+            return Box::pin(async move {
+                Err(ErrorUnauthorized("This access is for administrators only"))
+            });
+        }
+
+        // 6. Se chegou aqui, token é válido e permissões estão ok
         req.extensions_mut().insert(token_data.claims);
 
-        // 10. Passa a requisição para o próximo handler
         let fut = self.service.call(req);
         Box::pin(async move {
             let res = fut.await?;

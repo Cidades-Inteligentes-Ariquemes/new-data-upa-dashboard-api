@@ -85,3 +85,14 @@ pub fn is_public_route(path: &str) -> bool {
 
     public_routes.iter().any(|route| path.starts_with(route))
 }
+
+pub fn routes_for_users_common(path: &str) -> bool {
+    let routes_common = [
+        "/api/users/feedback-respiratory-diseases",
+        "/api/users/feedback-tuberculosis",
+        "/api/users/update-password-by-user-common"
+    ];
+
+    routes_common.iter().any(|route| path.starts_with(route))
+
+}
