@@ -11,6 +11,7 @@ use new_data_upa_dashboard_api::{
    application::{
        auth_service::AuthService,
        user_service::UserService,
+       machine_information_service::MachineInformationService,
    },
    infrastructure::{
        database::init_database,
@@ -62,7 +63,9 @@ async fn main() -> std::io::Result<()> {
        Box::new(JwtTokenGenerator::new()),
    ));
 
-   let server_addr = config.server_addr.clone();
+    let machine_information_service = web::Data::new(MachineInformationService);
+
+    let server_addr = config.server_addr.clone();
    info!("Server será iniciado em: http://{}", server_addr);
 
    HttpServer::new(move || {
@@ -81,6 +84,7 @@ async fn main() -> std::io::Result<()> {
            .app_data(user_service.clone())
            .app_data(auth_service.clone())
            .app_data(web::Data::new(config.clone()))
+           .app_data(machine_information_service.clone())
            .configure(configure_routes)
    })
    .bind(server_addr)?
