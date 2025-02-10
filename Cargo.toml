@@ -51,4 +51,9 @@ chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.12.12", features = ["json"] }
 rand = "0.8.5"
 
+# machine information
+
+sysinfo = { version = "0.33.1", features = ["disk"] }
+
+num_cpus = "1.15"
 
