@@ -1,5 +1,6 @@
 use sysinfo::System;
-use std::time::SystemTime;
+use std::time::{SystemTime, Duration};
+use std::thread;
 use reqwest;
 use crate::domain::models::machine_information::{
     DiskInfo,
@@ -12,6 +13,10 @@ impl SystemMetrics {
     pub fn new() -> Self {
         let mut sys = System::new_all();
         sys.refresh_all();
+
+        // Aguarda um intervalo para que o uso da CPU seja medido com base em duas leituras
+        thread::sleep(Duration::from_millis(500));
+        sys.refresh_cpu_usage();
 
         SystemMetrics {
             cpu: Self::get_cpu_info(&sys),
@@ -46,7 +51,9 @@ impl SystemMetrics {
         use sysinfo::Components;
         let components = Components::new_with_refreshed_list();
         for component in components.iter() {
-            if component.label().to_lowercase().contains("cpu") {
+            if component.label().to_lowercase().contains("cpu")
+                || component.label().contains("Tctl")
+            {
                 if let Some(temp) = component.temperature() {
                     return format!("{:.2}", temp);
                 }
