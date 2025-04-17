@@ -1,21 +1,13 @@
-use async_trait::async_trait;
-use sqlx::{PgPool};
-use uuid::Uuid;
 use crate::domain::models::user::{
-    CreateUserDto,
-    UpdateUserDto,
-    AddApplicationDto,
-    CreateFeedbackRespiratoryDiseasesDto,
-    FeedbackRespiratoryDiseasesResponse,
-    User,
-    CreateFeedbackTuberculosisDto,
-    FeedbackTuberculosisResponse,
-    UpdateEnabledUserDto,
-    AddVerificationCodeDto,
-    AddVerificationCodeResponse,
-    UpdateVerificationCodeDto,
+    AddApplicationDto, AddVerificationCodeDto, AddVerificationCodeResponse,
+    CreateFeedbackRespiratoryDiseasesDto, CreateFeedbackTuberculosisDto, CreateUserDto,
+    FeedbackRespiratoryDiseasesResponse, FeedbackTuberculosisResponse, UpdateEnabledUserDto,
+    UpdateUserDto, UpdateVerificationCodeDto, User,
 };
 use crate::domain::repositories::user::UserRepository;
+use async_trait::async_trait;
+use sqlx::PgPool;
+use uuid::Uuid;
 
 pub struct PgUserRepository {
     pool: PgPool,
@@ -45,21 +37,26 @@ impl UserRepository for PgUserRepository {
             ORDER BY full_name
             "#
         )
-            .fetch_all(&self.pool)
-            .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
-        Ok(users.into_iter().map(|row| User {
-            id: row.id,
-            full_name: row.full_name,
-            email: row.email,
-            password: row.password,
-            profile: row.profile,
-            allowed_applications: row.allowed_applications,
-            enabled: row.enabled,
-        }).collect())
+        Ok(users
+            .into_iter()
+            .map(|row| User {
+                id: row.id,
+                full_name: row.full_name,
+                email: row.email,
+                password: row.password,
+                profile: row.profile,
+                allowed_applications: row.allowed_applications,
+                enabled: row.enabled,
+            })
+            .collect())
     }
 
-    async fn find_all_feedbacks_respiratory_diseases(&self) -> Result<Vec<FeedbackRespiratoryDiseasesResponse>, sqlx::Error> {
+    async fn find_all_feedbacks_respiratory_diseases(
+        &self,
+    ) -> Result<Vec<FeedbackRespiratoryDiseasesResponse>, sqlx::Error> {
         let feedbacks = sqlx::query!(
             r#"
             SELECT
@@ -72,37 +69,45 @@ impl UserRepository for PgUserRepository {
             ORDER BY user_name
             "#
         )
-            .fetch_all(&self.pool)
-            .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
-        Ok(feedbacks.into_iter().map(|row| FeedbackRespiratoryDiseasesResponse {
-            id: row.id,
-            user_name: row.user_name,
-            feedback: row.feedback,
-            prediction_made: row.prediction_made,
-            correct_prediction: row.correct_prediction
-        }).collect())
+        Ok(feedbacks
+            .into_iter()
+            .map(|row| FeedbackRespiratoryDiseasesResponse {
+                id: row.id,
+                user_name: row.user_name,
+                feedback: row.feedback,
+                prediction_made: row.prediction_made,
+                correct_prediction: row.correct_prediction,
+            })
+            .collect())
     }
 
-    async fn find_all_feedbacks_tuberculosis(&self) -> Result<Vec<FeedbackTuberculosisResponse>, sqlx::Error> {
+    async fn find_all_feedbacks_tuberculosis(
+        &self,
+    ) -> Result<Vec<FeedbackTuberculosisResponse>, sqlx::Error> {
         let feedbacks_tuberculosis = sqlx::query!(
             r#"
             SELECT
                id,
                user_name,
                feedback
-            FROM feedback_tuberculosis
+            FROM feedbacks_tuberculosis
             ORDER BY user_name
             "#
         )
-            .fetch_all(&self.pool)
-            .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
-        Ok(feedbacks_tuberculosis.into_iter().map(|row | FeedbackTuberculosisResponse {
-            id: row.id,
-            user_name: row.user_name,
-            feedback: row.feedback
-        }).collect())
+        Ok(feedbacks_tuberculosis
+            .into_iter()
+            .map(|row| FeedbackTuberculosisResponse {
+                id: row.id,
+                user_name: row.user_name,
+                feedback: row.feedback,
+            })
+            .collect())
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, sqlx::Error> {
@@ -121,8 +126,8 @@ impl UserRepository for PgUserRepository {
             "#,
             id
         )
-            .fetch_optional(&self.pool)
-            .await?;
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(user.map(|row| User {
             id: row.id,
@@ -151,8 +156,8 @@ impl UserRepository for PgUserRepository {
             "#,
             email
         )
-            .fetch_optional(&self.pool)
-            .await?;
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(user.map(|row| User {
             id: row.id,
@@ -167,7 +172,7 @@ impl UserRepository for PgUserRepository {
 
     async fn create(&self, user: CreateUserDto) -> Result<User, sqlx::Error> {
         let id = Uuid::new_v4();
-    
+
         let user = sqlx::query!(
             r#"
             INSERT INTO users_api (
@@ -192,13 +197,13 @@ impl UserRepository for PgUserRepository {
             id,
             user.full_name,
             user.email,
-            user.password, 
+            user.password,
             user.profile,
             &user.allowed_applications as &[String],
         )
         .fetch_one(&self.pool)
         .await?;
-    
+
         Ok(User {
             id: user.id,
             full_name: user.full_name,
@@ -238,8 +243,8 @@ impl UserRepository for PgUserRepository {
                 &user.allowed_applications as &[String],
                 id
             )
-                .fetch_one(&self.pool)
-                .await?;
+            .fetch_one(&self.pool)
+            .await?;
 
             Ok(Some(User {
                 id: updated_user.id,
@@ -267,11 +272,15 @@ impl UserRepository for PgUserRepository {
         )
         .execute(&self.pool)
         .await?;
-    
+
         Ok(result.rows_affected() > 0)
     }
 
-    async fn update_enabled(&self, id: Uuid, enabled: UpdateEnabledUserDto) -> Result<bool, sqlx::Error> {
+    async fn update_enabled(
+        &self,
+        id: Uuid,
+        enabled: UpdateEnabledUserDto,
+    ) -> Result<bool, sqlx::Error> {
         let result = sqlx::query!(
             r#"
             UPDATE users_api
@@ -297,11 +306,15 @@ impl UserRepository for PgUserRepository {
         )
         .execute(&self.pool)
         .await?;
-    
+
         Ok(result.rows_affected() > 0)
     }
 
-    async fn delete_application(&self, id: Uuid, application_name: &str) -> Result<bool, sqlx::Error> {
+    async fn delete_application(
+        &self,
+        id: Uuid,
+        application_name: &str,
+    ) -> Result<bool, sqlx::Error> {
         let result = sqlx::query!(
             r#"
             UPDATE users_api
@@ -313,13 +326,17 @@ impl UserRepository for PgUserRepository {
         )
         .execute(&self.pool)
         .await?;
-    
+
         Ok(result.rows_affected() > 0)
     }
 
-    async fn add_application(&self, id: Uuid, applications: AddApplicationDto) -> Result<Option<User>, sqlx::Error> {
+    async fn add_application(
+        &self,
+        id: Uuid,
+        applications: AddApplicationDto,
+    ) -> Result<Option<User>, sqlx::Error> {
         let current_user = self.find_by_id(id).await?;
-    
+
         if let Some(_) = current_user {
             let result = sqlx::query!(
                 r#"
@@ -340,7 +357,7 @@ impl UserRepository for PgUserRepository {
             )
             .fetch_one(&self.pool)
             .await?;
-        
+
             Ok(Some(User {
                 id: result.id,
                 full_name: result.full_name,
@@ -356,12 +373,12 @@ impl UserRepository for PgUserRepository {
     }
 
     async fn create_feedback_respiratory_diseases(
-        &self, 
-        feedback: CreateFeedbackRespiratoryDiseasesDto
+        &self,
+        feedback: CreateFeedbackRespiratoryDiseasesDto,
     ) -> Result<Option<FeedbackRespiratoryDiseasesResponse>, sqlx::Error> {
         let id = Uuid::new_v4();
         let created_at = chrono::Utc::now().naive_utc();
-        
+
         sqlx::query!(
             r#"
             INSERT INTO feedbacks (
@@ -384,7 +401,7 @@ impl UserRepository for PgUserRepository {
         )
         .fetch_one(&self.pool)
         .await?;
-    
+
         Ok(Some(FeedbackRespiratoryDiseasesResponse {
             id,
             user_name: feedback.user_name,
@@ -396,14 +413,14 @@ impl UserRepository for PgUserRepository {
 
     async fn create_feedback_tuberculosis(
         &self,
-        feedback_tuberculosis: CreateFeedbackTuberculosisDto
+        feedback_tuberculosis: CreateFeedbackTuberculosisDto,
     ) -> Result<Option<FeedbackTuberculosisResponse>, sqlx::Error> {
         let id = Uuid::new_v4();
         let created_at = chrono::Utc::now().naive_utc();
 
         sqlx::query!(
             r#"
-            INSERT INTO feedback_tuberculosis (
+            INSERT INTO feedbacks_tuberculosis (
                 id,
                 user_name,
                 feedback,
@@ -417,8 +434,8 @@ impl UserRepository for PgUserRepository {
             feedback_tuberculosis.feedback,
             created_at
         )
-            .fetch_one(&self.pool)
-            .await?;
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(Some(FeedbackTuberculosisResponse {
             id,
@@ -429,9 +446,8 @@ impl UserRepository for PgUserRepository {
 
     async fn add_verification_code(
         &self,
-        data: AddVerificationCodeDto
+        data: AddVerificationCodeDto,
     ) -> Result<AddVerificationCodeResponse, sqlx::Error> {
-
         sqlx::query!(
             r#"
             INSERT INTO forgot_password (
@@ -454,8 +470,8 @@ impl UserRepository for PgUserRepository {
             data.created_at,
             data.expiration_at
         )
-            .fetch_one(&self.pool)
-            .await?;
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(AddVerificationCodeResponse {
             id_verification: data.id,
@@ -466,12 +482,14 @@ impl UserRepository for PgUserRepository {
             created_at: data.created_at,
             expiration_at: data.expiration_at,
         })
-
     }
 
-    async fn verify_code_exist(&self, id: Uuid) -> Result<AddVerificationCodeResponse, sqlx::Error> {
+    async fn verify_code_exist(
+        &self,
+        id: Uuid,
+    ) -> Result<AddVerificationCodeResponse, sqlx::Error> {
         let data = sqlx::query!(
-        r#"
+            r#"
         SELECT
             id,
             user_id,
@@ -483,11 +501,11 @@ impl UserRepository for PgUserRepository {
         FROM forgot_password
         WHERE id = $1
         "#,
-        id
-    )
-            .fetch_optional(&self.pool)
-            .await?
-            .ok_or(sqlx::Error::RowNotFound)?;
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or(sqlx::Error::RowNotFound)?;
 
         Ok(AddVerificationCodeResponse {
             id_verification: data.id,
@@ -504,10 +522,10 @@ impl UserRepository for PgUserRepository {
         &self,
         code: UpdateVerificationCodeDto,
         email: String,
-        id_verification: Uuid
+        id_verification: Uuid,
     ) -> Result<AddVerificationCodeResponse, sqlx::Error> {
         let updated = sqlx::query!(
-        r#"
+            r#"
         UPDATE forgot_password
         SET
             code_verification = $1,
@@ -523,14 +541,14 @@ impl UserRepository for PgUserRepository {
             created_at,
             expiration_at
         "#,
-        code.verification_code,
-        code.expiration_at,
-        code.used,
-        id_verification,
-        email
-    )
-            .fetch_one(&self.pool)
-            .await?;
+            code.verification_code,
+            code.expiration_at,
+            code.used,
+            id_verification,
+            email
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(AddVerificationCodeResponse {
             id_verification: updated.id,
@@ -545,10 +563,10 @@ impl UserRepository for PgUserRepository {
 
     async fn update_used_verification_code(
         &self,
-        id_verification: Uuid
+        id_verification: Uuid,
     ) -> Result<AddVerificationCodeResponse, sqlx::Error> {
         let updated = sqlx::query!(
-        r#"
+            r#"
         UPDATE forgot_password
         SET
             used = true
@@ -562,11 +580,10 @@ impl UserRepository for PgUserRepository {
             created_at,
             expiration_at
         "#,
-        id_verification,
-
-    )
-            .fetch_one(&self.pool)
-            .await?;
+            id_verification,
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(AddVerificationCodeResponse {
             id_verification: updated.id,
@@ -579,7 +596,11 @@ impl UserRepository for PgUserRepository {
         })
     }
 
-    async fn update_password_for_forgetting_user(&self, user_id: Uuid, new_password: String) -> Result<bool, sqlx::Error> {
+    async fn update_password_for_forgetting_user(
+        &self,
+        user_id: Uuid,
+        new_password: String,
+    ) -> Result<bool, sqlx::Error> {
         let result = sqlx::query!(
             r#"
             UPDATE users_api
@@ -589,8 +610,8 @@ impl UserRepository for PgUserRepository {
             new_password,
             user_id
         )
-            .execute(&self.pool)
-            .await?;
+        .execute(&self.pool)
+        .await?;
 
         Ok(result.rows_affected() > 0)
     }

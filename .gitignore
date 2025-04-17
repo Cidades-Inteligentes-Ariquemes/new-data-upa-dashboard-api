@@ -2,3 +2,5 @@
 .env
 .sqlx
 .idea
+backup-dados-upa.sql
+docker-compose.yml

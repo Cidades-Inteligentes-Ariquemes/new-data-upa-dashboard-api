@@ -1,16 +1,16 @@
 services:
   db:
-    container_name: "postgres-dados-upa"
+    container_name: "postgres-dados-upa-rust"
     image: postgres:16.4
     ports:
       - "5432:5432"
     environment:
       POSTGRES_DB: dados_upa_db
-      POSTGRES_USER: diogo
+      POSTGRES_USER: diogo_rust
       POSTGRES_PASSWORD: procint94023
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ../backup-dados-upa.sql:/docker-entrypoint-initdb.d/backup-dados-upa.sql
+      - ./backup-dados-upa.sql:/docker-entrypoint-initdb.d/backup-dados-upa.sql
 
 volumes:
   postgres_data:
