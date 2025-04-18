@@ -9,6 +9,11 @@ pub struct Config {
     pub email: String,
     pub email_password: String,
     pub app_name: String,
+    pub server: String,
+    pub port: String,
+    pub database: String,
+    pub user_pronto: String,
+    pub password: String,
 }
 
 impl Config {
@@ -21,6 +26,11 @@ impl Config {
             email: env::var("EMAIL").expect("EMAIL must be set"),
             email_password: env::var("EMAIL_PASSWORD").expect("EMAIL_PASSWORD must be set"),
             app_name: env::var("APP_NAME").expect("APP_NAME must be set"),
+            server: env::var("SERVER").expect("SERVER PRONTO must be set"),
+            port: env::var("PORT").expect("PORT DB PRONTO must be set"),
+            database: env::var("DATABASE").expect("DATABASE NAME PRONTO must be set"),
+            user_pronto: env::var("USER_PRONTO").expect("USER NAME PRONTO DB must be set"),
+            password: env::var("PASSWORD").expect("PASSWORD DB PRONTO must be set"),
         }
     }
 }

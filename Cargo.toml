@@ -57,3 +57,7 @@ sysinfo = { version = "0.33.1", features = ["disk"] }
 
 num_cpus = "1.15"
 
+# libs to login pronto
+tiberius = { version = "0.12.3", features = ["chrono", "tds73"] }
+tokio-util = { version = "0.7.10", features = ["compat"] }
+md5 = "0.7.0"

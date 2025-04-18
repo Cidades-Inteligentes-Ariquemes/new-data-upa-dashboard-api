@@ -8,7 +8,7 @@ pub trait TokenGeneratorPort: Send + Sync {
 }
 
 // Implementação usando JWT
-#[derive(Clone)] // Permite clonagem do adaptador
+#[derive(Clone)]
 pub struct JwtTokenGenerator;
 
 impl JwtTokenGenerator {

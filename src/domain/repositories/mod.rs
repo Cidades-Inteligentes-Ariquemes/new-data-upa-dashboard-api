@@ -1,2 +1,3 @@
 pub mod user;
-mod machine_information;
+pub mod machine_information;
+pub mod auth_pronto;

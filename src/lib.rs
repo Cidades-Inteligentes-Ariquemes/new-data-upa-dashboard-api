@@ -12,3 +12,4 @@ pub use domain::models::auth::Claims;
 pub use utils::error::AppError;
 pub use utils::response::ApiResponse;
 
+pub use domain::models::auth_pronto::{UserLoginPronto, LoginProntoResponse};

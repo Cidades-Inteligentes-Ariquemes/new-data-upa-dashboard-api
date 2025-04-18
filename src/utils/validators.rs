@@ -77,6 +77,7 @@ pub fn validate_feedbacks(feedback: &str) -> Result<(), AppError> {
 pub fn is_public_route(path: &str) -> bool {
     let public_routes = [
         "/api/auth/login",
+        "/api/auth/login-pronto",
         "/api/users/send-verification-code/",
         "/api/users/resend-verification-code/",
         "/api/users/confirm-verification-code",

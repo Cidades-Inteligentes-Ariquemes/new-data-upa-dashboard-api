@@ -10,12 +10,16 @@ use new_data_upa_dashboard_api::{
    },
    application::{
        auth_service::AuthService,
+       auth_pronto_service::AuthProntoService,
        user_service::UserService,
        machine_information_service::MachineInformationService,
    },
    infrastructure::{
        database::init_database,
-       repositories::user_repository::PgUserRepository,
+       repositories::{
+           user_repository::PgUserRepository,
+           auth_pronto_repository::SqlServerAuthProntoRepository,
+       },
    },
    middleware::{
        auth::AuthMiddleware,
@@ -45,9 +49,10 @@ async fn main() -> std::io::Result<()> {
    // Cria os adapters
    let password_encryptor = Box::new(Argon2PasswordEncryptor::new());
 
-   // Cria o repositório
+   // Cria os repositórios
    let user_repository = web::Data::new(PgUserRepository::new(pool));
-   info!("Repositório de usuários criado");
+   
+   info!("Repositórios criados");
 
    // Cria os services
    let user_service = web::Data::new(UserService::new(
@@ -63,12 +68,22 @@ async fn main() -> std::io::Result<()> {
        Box::new(JwtTokenGenerator::new()),
    ));
 
-    let machine_information_service = web::Data::new(MachineInformationService);
+   let machine_information_service = web::Data::new(MachineInformationService);
 
-    let server_addr = config.server_addr.clone();
+   let server_addr = config.server_addr.clone();
    info!("Server será iniciado em: http://{}", server_addr);
 
    HttpServer::new(move || {
+       // Cria uma nova instância do repositório para cada worker
+       let auth_pronto_repository = SqlServerAuthProntoRepository::new(config.clone());
+       
+       // Cria uma nova instância do serviço para cada worker
+       let auth_pronto_service = web::Data::new(AuthProntoService::new(
+           Box::new(auth_pronto_repository),
+           web::Data::new(config.clone()),
+           Box::new(JwtTokenGenerator::new()),
+       ));
+       
        let cors = Cors::default()
            .allow_any_origin()
            .allow_any_method()
@@ -83,6 +98,7 @@ async fn main() -> std::io::Result<()> {
            .app_data(user_repository.clone())
            .app_data(user_service.clone())
            .app_data(auth_service.clone())
+           .app_data(auth_pronto_service)
            .app_data(web::Data::new(config.clone()))
            .app_data(machine_information_service.clone())
            .configure(configure_routes)
