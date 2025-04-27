@@ -6,8 +6,8 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_DB: dados_upa_db
-      POSTGRES_USER: diogo_rust
-      POSTGRES_PASSWORD: procint94023
+      POSTGRES_USER: "your_username"
+      POSTGRES_PASSWORD: "your_password"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backup-dados-upa.sql:/docker-entrypoint-initdb.d/backup-dados-upa.sql
