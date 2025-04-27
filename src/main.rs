@@ -5,21 +5,23 @@ use log::info;
 
 use new_data_upa_dashboard_api::{
    adapters::{
-       password::encryptor::Argon2PasswordEncryptor,
-       token::generate_token::JwtTokenGenerator,
+        password::encryptor::Argon2PasswordEncryptor,
+        token::generate_token::JwtTokenGenerator,
    },
    application::{
-       auth_service::AuthService,
-       auth_pronto_service::AuthProntoService,
-       user_service::UserService,
-       machine_information_service::MachineInformationService,
+        auth_service::AuthService,
+        auth_pronto_service::AuthProntoService,
+        user_service::UserService,
+        machine_information_service::MachineInformationService,
+        data_upa_service::DataUpaService,
    },
    infrastructure::{
-       database::init_database,
-       repositories::{
-           user_repository::PgUserRepository,
-           auth_pronto_repository::SqlServerAuthProntoRepository,
-       },
+        database::init_database,
+        repositories::{
+            user_repository::PgUserRepository,
+            auth_pronto_repository::SqlServerAuthProntoRepository,
+            data_upa_repository::PgDataRepository,
+        },
    },
    middleware::{
        auth::AuthMiddleware,
@@ -50,16 +52,26 @@ async fn main() -> std::io::Result<()> {
    let password_encryptor = Box::new(Argon2PasswordEncryptor::new());
 
    // Cria os repositórios
-   let user_repository = web::Data::new(PgUserRepository::new(pool));
+   let user_repository = web::Data::new(PgUserRepository::new(pool.clone()));
+
+    // Cria o repositório de dados UPA
+    let data_repository = web::Data::new(PgDataRepository::new(pool.clone()));
    
    info!("Repositórios criados");
 
-   // Cria os services
+   // Cria service de dados UPA
+   let data_upa_service = web::Data::new(DataUpaService::new(
+       data_repository.clone(),
+   ));
+   info!("Serviço de dados UPA criado");
+
+   // Cria os services users
    let user_service = web::Data::new(UserService::new(
        user_repository.clone(),
        password_encryptor.clone(),
        web::Data::new(config.clone()),
    ));
+
 
    let auth_service = web::Data::new(AuthService::new(
        user_repository.clone(),
@@ -91,17 +103,19 @@ async fn main() -> std::io::Result<()> {
            .max_age(3600);
 
        App::new()
-           .wrap(cors)
-           .wrap(Logger::default())
-           .wrap(LoggingMiddleware)
-           .wrap(AuthMiddleware)
-           .app_data(user_repository.clone())
-           .app_data(user_service.clone())
-           .app_data(auth_service.clone())
-           .app_data(auth_pronto_service)
-           .app_data(web::Data::new(config.clone()))
-           .app_data(machine_information_service.clone())
-           .configure(configure_routes)
+            .wrap(cors)
+            .wrap(Logger::default())
+            .wrap(LoggingMiddleware)
+            .wrap(AuthMiddleware)
+            .app_data(user_repository.clone())
+            .app_data(data_repository.clone())
+            .app_data(data_upa_service.clone())
+            .app_data(user_service.clone())
+            .app_data(auth_service.clone())
+            .app_data(auth_pronto_service)
+            .app_data(web::Data::new(config.clone()))
+            .app_data(machine_information_service.clone())
+            .configure(configure_routes)
    })
    .bind(server_addr)?
    .run()
