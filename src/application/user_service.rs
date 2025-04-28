@@ -47,7 +47,7 @@ use crate::utils::{
 };
 
 use crate::AppError;
-use crate::domain::models::user::{IdVerificationDto};
+use crate::domain::models::user::IdVerificationDto;
 
 pub struct UserService {
     repo: web::Data<PgUserRepository>,

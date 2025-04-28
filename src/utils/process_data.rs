@@ -11,6 +11,7 @@ use linfa_clustering::KMeans;
 use ndarray::Array2;
 use rust_stemmers::{Algorithm, Stemmer};
 
+
 /// Retorna os nomes das colunas a serem removidas
 pub fn columns_names() -> Vec<&'static str> {
     vec![
@@ -1074,4 +1075,76 @@ pub fn create_dataframe(data: &HashMap<String, Vec<Value>>) -> PolarsResult<Data
         "long" => long,
         "lat" => lat
     )
+}
+
+
+// Função recursiva para converter chaves para string
+pub fn convert_keys_to_str(data: Value) -> Value {
+    match data {
+        Value::Object(map) => {
+            let mut new_map = serde_json::Map::new();
+            for (k, v) in map {
+                new_map.insert(k.to_string(), convert_keys_to_str(v));
+            }
+            Value::Object(new_map)
+        },
+        Value::Array(arr) => {
+            let new_arr = arr.into_iter()
+                .map(|item| convert_keys_to_str(item))
+                .collect();
+            Value::Array(new_arr)
+        },
+        _ => data,
+    }
+}
+
+
+// Função auxiliar para criar DataFrame a partir de dicionário
+pub fn create_dataframe_from_dict(data: &HashMap<String, Vec<Value>>) -> PolarsResult<DataFrame> {
+    // Create a vector to store the Series for each column
+    let mut series_vec = Vec::new();
+    
+    // Process each column in the HashMap
+    for (column_name, values) in data {
+        // Check the first non-null value to determine the column type
+        let first_value = values.iter().find(|v| !v.is_null());
+        
+        match first_value {
+            // String type columns
+            Some(value) if value.is_string() => {
+                let string_values: Vec<&str> = values
+                    .iter()
+                    .map(|v| v.as_str().unwrap_or_default())
+                    .collect();
+                series_vec.push(Series::new(column_name.into(), string_values).into());
+            },
+            // Numeric columns (assuming float for simplicity)
+            Some(value) if value.is_number() => {
+                let numeric_values: Vec<Option<f64>> = values
+                    .iter()
+                    .map(|v| v.as_str().and_then(|s| s.parse().ok()))
+                    .collect();
+                series_vec.push(Series::new(column_name.into(), numeric_values).into());
+            },
+            // Boolean columns
+            Some(value) if value.is_boolean() => {
+                let bool_values: Vec<Option<bool>> = values
+                    .iter()
+                    .map(|v| v.as_bool())
+                    .collect();
+                series_vec.push(Series::new(column_name.into(), bool_values).into());
+            },
+            // Default to string type if type can't be determined
+            _ => {
+                let string_values: Vec<&str> = values
+                    .iter()
+                    .map(|v| v.as_str().unwrap_or_default())
+                    .collect();
+                series_vec.push(Series::new(column_name.into(), string_values).into());
+            }
+        }
+    }
+    
+    // Create DataFrame from the Series vector
+    DataFrame::new(series_vec)
 }

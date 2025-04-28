@@ -1,5 +1,5 @@
 use actix_web::web;
-use crate::handlers::data::data_upa_handler;
+use crate::handlers::data::{data_upa_handler,update_graph_data_handler, visualization_data_handler};
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -7,6 +7,58 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .service(
                 web::resource("/add-file")
                     .route(web::post().to(data_upa_handler::add_data))
+            )
+            .service(
+                web::resource("/update-graph-data")
+                    .route(web::get().to(update_graph_data_handler::update_graph_data))
+            )
+            .service(
+                web::resource("/number-of-appointments-per-month")
+                    .route(web::get().to(visualization_data_handler::number_of_appointments_per_month))
+            )
+            .service(
+                web::resource("/number-of-appointments-per-year/{year}")
+                    .route(web::get().to(visualization_data_handler::number_of_appointments_per_year))
+            )
+            .service(
+                web::resource("/years-available-for-number-of-appointments-per-month")
+                    .route(web::get().to(visualization_data_handler::years_available_for_number_of_appointments_per_month))
+            )
+            .service(
+                web::resource("/number-of-appointments-per-flow")
+                    .route(web::get().to(visualization_data_handler::number_of_appointments_per_flow))
+            )
+            .service(
+                web::resource("/distribuition-of-patients-ages")
+                    .route(web::get().to(visualization_data_handler::distribuition_of_patients_ages))
+            )
+            .service(
+                web::resource("/number-of-calls-per-day-of-the-week")
+                    .route(web::get().to(visualization_data_handler::number_of_calls_per_day_of_the_week))
+            )
+            .service(
+                web::resource("/distribution-of-services-by-hour-group")
+                    .route(web::get().to(visualization_data_handler::distribution_of_services_by_hour_group))
+            )
+            .service(
+                web::resource("/number-of-visits-per-nurse")
+                    .route(web::get().to(visualization_data_handler::number_of_visits_per_nurse))
+            )
+            .service(
+                web::resource("/number-of-visits-per-doctor")
+                    .route(web::get().to(visualization_data_handler::number_of_visits_per_doctor))
+            )
+            .service(
+                web::resource("/average-time-in-minutes-per-doctor")
+                    .route(web::get().to(visualization_data_handler::average_time_in_minutes_per_doctor))
+            )
+            .service(
+                web::resource("/heat-map-with-disease-indication")
+                    .route(web::get().to(visualization_data_handler::heat_map_with_disease_indication))
+            )
+            .service(
+                web::resource("/heat-map-with-the-number-of-medical-appointments-by-neighborhood")
+                    .route(web::get().to(visualization_data_handler::heat_map_with_the_number_of_medical_appointments_by_neighborhood))
             )
 
     );

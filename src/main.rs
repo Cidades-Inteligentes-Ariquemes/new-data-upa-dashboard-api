@@ -14,6 +14,8 @@ use new_data_upa_dashboard_api::{
         user_service::UserService,
         machine_information_service::MachineInformationService,
         data_upa_service::DataUpaService,
+        update_graph_data_service::UpdateGraphDataService,
+        visualization_data_service::VisualizationDataService,
    },
    infrastructure::{
         database::init_database,
@@ -30,6 +32,7 @@ use new_data_upa_dashboard_api::{
    routes::config::routes::configure_routes,
    utils::config_env::Config,
 };
+
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -63,6 +66,15 @@ async fn main() -> std::io::Result<()> {
    let data_upa_service = web::Data::new(DataUpaService::new(
        data_repository.clone(),
    ));
+
+   let update_graph_data_service = web::Data::new(UpdateGraphDataService::new(
+       data_repository.clone(),
+   ));
+
+   let visualization_data_service = web::Data::new(VisualizationDataService::new(
+       data_repository.clone(),
+   ));
+
    info!("Serviço de dados UPA criado");
 
    // Cria os services users
@@ -110,6 +122,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(user_repository.clone())
             .app_data(data_repository.clone())
             .app_data(data_upa_service.clone())
+            .app_data(update_graph_data_service.clone())
+            .app_data(visualization_data_service.clone())
             .app_data(user_service.clone())
             .app_data(auth_service.clone())
             .app_data(auth_pronto_service)

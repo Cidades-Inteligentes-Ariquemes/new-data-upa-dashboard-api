@@ -1,8 +1,10 @@
 use crate::domain::repositories::data_upa::DataRepository;
+use crate::utils::process_data::convert_keys_to_str;
 use async_trait::async_trait;
 use polars::frame::DataFrame;
 use serde_json::{Value, json};
 use sqlx::{Column, PgPool, Row};
+use uuid::Uuid;
 use std::collections::HashMap;
 use std::error::Error;
 
@@ -274,6 +276,176 @@ impl DataRepository for PgDataRepository {
                 eprintln!("Erro ao criar tabela {}: {}", table, e);
                 Err(e)
             }
+        }
+    }
+
+    async fn fetch_columns_by_name(&self, table: &str, columns: &[String]) -> Result<HashMap<String, Vec<Value>>, Box<dyn Error + Send + Sync>> {
+        // Constrói a query para buscar colunas específicas
+        let query = format!("SELECT {} FROM {}", columns.join(", "), table);
+
+        // Executa a query
+        let rows = sqlx::query(&query)
+            .fetch_all(&self.pool)
+            .await?;
+
+        if rows.is_empty() {
+            println!("No data found in table {} for columns {}", table, columns.join(", "));
+            return Ok(HashMap::new());
+        }
+
+        // Inicializar o resultado
+        let mut result: HashMap<String, Vec<Value>> = HashMap::new();
+        for col_name in columns {
+            result.insert(col_name.to_string(), Vec::new());
+        }
+
+        // Para cada linha de resultado
+        for row in &rows {
+            // Para cada coluna na linha
+            for (i, column_name) in columns.iter().enumerate() {
+                // Tentar obter o valor baseado no tipo da coluna
+                let column = row.columns().get(i).unwrap();
+                let value: Value = match column.type_info().to_string().as_str() {
+                    "INT4" | "INT8" => {
+                        if let Ok(v) = row.try_get::<i64, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "FLOAT4" | "FLOAT8" => {
+                        if let Ok(v) = row.try_get::<f64, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "VARCHAR" | "TEXT" => {
+                        if let Ok(v) = row.try_get::<String, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "BOOL" => {
+                        if let Ok(v) = row.try_get::<bool, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "TIMESTAMP" | "TIMESTAMPTZ" => {
+                        if let Ok(v) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
+                            json!(v.to_string())
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "DATE" => {
+                        if let Ok(v) = row.try_get::<chrono::NaiveDate, _>(i) {
+                            json!(v.to_string())
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    _ => {
+                        // Para outros tipos, tenta obter como string
+                        if let Ok(v) = row.try_get::<String, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    }
+                };
+
+                // Adiciona o valor ao vetor da coluna
+                if let Some(column_values) = result.get_mut(column_name) {
+                    column_values.push(value);
+                }
+            }
+        }
+
+        println!("Fetched columns {:?} from table {}", columns, table);
+        Ok(result)
+    }
+
+    
+
+    async fn insert_nested_json(&self, data: Value, table: &str, identifier: &str) -> Result<HashMap<String, Value>, Box<dyn Error + Send + Sync>> {
+        // Habilita a extensão uuid-ossp se necessário
+        sqlx::query("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
+            .execute(&self.pool)
+            .await?;
+
+        // Cria a tabela se não existir
+        let create_table_query = format!(
+            "CREATE TABLE IF NOT EXISTS {} (
+                id UUID DEFAULT uuid_generate_v4(),
+                identifier TEXT UNIQUE,
+                data JSONB
+            );",
+            table
+        );
+
+        sqlx::query(&create_table_query)
+            .execute(&self.pool)
+            .await?;
+
+        // Converter chaves para strings
+        let processed_data = convert_keys_to_str(data);
+
+        // Serializar o dicionário em JSON
+        let data_json = processed_data.to_string();
+
+        // Inserir ou atualizar os dados
+        let insert_query = format!(
+            "INSERT INTO {} (identifier, data)
+            VALUES ($1, $2::jsonb)
+            ON CONFLICT (identifier)
+            DO UPDATE SET data = EXCLUDED.data
+            RETURNING id;",
+            table
+        );
+
+        let record_id: Uuid = sqlx::query_scalar(&insert_query)
+            .bind(identifier)
+            .bind(data_json)
+            .fetch_one(&self.pool)
+            .await?;
+
+        println!("Dados inseridos/atualizados com sucesso na tabela {} com id {}", table, record_id);
+
+        let mut result = HashMap::new();
+        result.insert("id".to_string(), json!(record_id.to_string()));
+        result.insert("added".to_string(), json!(true));
+
+        Ok(result)
+    }
+
+    async fn fetch_nested_json(&self, table: &str, identifier: &str) -> Result<serde_json::Map<String, serde_json::Value>, Box<dyn Error + Send + Sync>> {
+        // Consulta SQL para buscar dados JSON
+        let query = format!("SELECT data FROM {} WHERE identifier = $1", table);
+        
+        // Executa a consulta
+        let row = sqlx::query(&query)
+            .bind(identifier)
+            .fetch_optional(&self.pool)
+            .await?;
+        
+        if let Some(row) = row {
+            // Extrair o valor JSON da coluna 'data'
+            let json_data: serde_json::Value = row.get("data");
+            
+            // Verificar se é um objeto JSON
+            if let serde_json::Value::Object(map) = json_data {
+                return Ok(map);
+            }
+            
+            // Se não for um objeto, retornar um mapa vazio
+            Ok(serde_json::Map::new())
+        } else {
+            // Se não encontrou nenhum registro, retornar um mapa vazio
+            Ok(serde_json::Map::new())
         }
     }
 }
