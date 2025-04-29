@@ -15,7 +15,20 @@ pub enum AppError {
     Unauthorized(String),
 
     #[display(fmt = "Forbidden: {}", _0)]
-    Forbidden(String)
+    Forbidden(String),
+
+    #[display(fmt = "Not Found: {}", _0)]
+    NotFound(String),
+
+    #[display(fmt = "Database Error: {}", _0)]
+    DatabaseError(String),
+
+    #[display(fmt = "Data Processing Error: {}", _0)]
+    DataProcessingError(String),
+
+    //InvalidMethodError
+    #[display(fmt = "Invalid Method Error: {}", _0)]
+    InvalidMethodError(String),
 }
 
 impl ResponseError for AppError {
@@ -30,7 +43,15 @@ impl ResponseError for AppError {
             AppError::Unauthorized(_) => 
                 (StatusCode::UNAUTHORIZED, "Unauthorized"),
             AppError::Forbidden(_) => 
-                (StatusCode::FORBIDDEN, "Forbidden")
+                (StatusCode::FORBIDDEN, "Forbidden"),
+            AppError::NotFound(_) =>
+                (StatusCode::NOT_FOUND, "Not Found"),
+            AppError::DatabaseError(_) =>
+                (StatusCode::INTERNAL_SERVER_ERROR, "Database Error"),
+            AppError::DataProcessingError(_) =>
+                (StatusCode::INTERNAL_SERVER_ERROR, "Data Processing Error"),
+            AppError::InvalidMethodError(_) =>
+                (StatusCode::METHOD_NOT_ALLOWED, "Invalid Method Error"),
         };
 
         HttpResponse::build(status_code)
@@ -46,7 +67,11 @@ impl ResponseError for AppError {
             AppError::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
-            AppError::Forbidden(_) => StatusCode::FORBIDDEN
+            AppError::Forbidden(_) => StatusCode::FORBIDDEN,
+            AppError::NotFound(_) => StatusCode::NOT_FOUND,
+            AppError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::DataProcessingError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::InvalidMethodError(_) => StatusCode::METHOD_NOT_ALLOWED,
         }
     }
 }

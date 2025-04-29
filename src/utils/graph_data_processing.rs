@@ -1,4 +1,3 @@
-use log::info;
 use polars::prelude::*;
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -127,181 +126,99 @@ impl DataProcessingForGraphPlotting {
     }
 
 
-    // pub async fn create_dict_to_distribuition_of_patients_ages(&self, df: &DataFrame) -> Result<Value, Box<dyn Error + Send + Sync>> {
-    //     println!("Processando distribuição de idades dos pacientes");
-        
-    //     // Extrair valores de idade como strings e depois tentar convertê-los
-    //     let idades_str = df.column("ifropacienteidade")?
-    //         .str()?
-    //         .into_iter()
-    //         .collect::<Vec<Option<&str>>>();
-        
-    //     let competencias = df.column("ifrocompetencia")?
-    //         .str()?
-    //         .into_iter()
-    //         .filter_map(|opt_s| opt_s.map(String::from))
-    //         .collect::<Vec<String>>();
-        
-    //     // Verificar que os vetores têm o mesmo tamanho
-    //     if idades_str.len() != competencias.len() {
-    //         return Err(Box::<dyn Error + Send + Sync>::from("Tamanhos de colunas incompatíveis"));
-    //     }
-        
-    //     // Converter strings para números
-    //     let mut idades = Vec::with_capacity(idades_str.len());
-    //     for idade_opt in idades_str {
-    //         let idade = match idade_opt {
-    //             Some(s) => s.parse::<i32>().unwrap_or(-1),
-    //             None => -1
-    //         };
-    //         idades.push(idade);
-    //     }
-        
-    //     // Definir faixas etárias
-    //     let age_groups = vec![
-    //         "0 a 19".to_string(),
-    //         "20 a 39".to_string(),
-    //         "40 a 59".to_string(),
-    //         "60 a 79".to_string(),
-    //         "80 a 100".to_string(),
-    //         "+ de 100".to_string()
-    //     ];
-        
-    //     // Preparar contadores para cada faixa etária
-    //     let mut age_group_data: HashMap<String, HashMap<String, i64>> = HashMap::new();
-    //     for group in &age_groups {
-    //         age_group_data.insert(group.clone(), HashMap::new());
-    //     }
-        
-    //     // Fazer contagem manual
-    //     for i in 0..idades.len() {
-    //         let idade = idades[i];
-    //         if idade >= 0 { // Ignorar valores inválidos
-    //             let group = if idade >= 0 && idade < 19 {
-    //                 "0 a 19"
-    //             } else if idade >= 19 && idade < 39 {
-    //                 "20 a 39"
-    //             } else if idade >= 39 && idade < 59 {
-    //                 "40 a 59"
-    //             } else if idade >= 59 && idade < 79 {
-    //                 "60 a 79"
-    //             } else if idade >= 79 && idade < 100 {
-    //                 "80 a 100"
-    //             } else {
-    //                 "+ de 100"
-    //             };
-                
-    //             let competencia = &competencias[i];
-                
-    //             // Incrementar contagem para esta competência e faixa etária
-    //             let comp_counts = age_group_data.get_mut(group).unwrap();
-    //             *comp_counts.entry(competencia.clone()).or_insert(0) += 1;
-    //         }
-    //     }
-        
-    //     // Criar o dicionário organizado final
-    //     let mut organized_data = HashMap::new();
-        
-    //     for age_group in age_groups {
-    //         let comp_counts = age_group_data.get(&age_group).unwrap();
-            
-    //         // Calcular total para esta faixa etária
-    //         let total: i64 = comp_counts.values().sum();
-            
-    //         let mut age_data = HashMap::new();
-    //         age_data.insert("todos".to_string(), json!(total));
-            
-    //         // Adicionar contagens por competência
-    //         for (competencia, count) in comp_counts {
-    //             age_data.insert(competencia.clone(), json!(count));
-    //         }
-            
-    //         organized_data.insert(age_group, age_data);
-    //     }
-        
-    //     Ok(json!(organized_data))
-    // }
     pub async fn create_dict_to_distribuition_of_patients_ages(&self, df: &DataFrame) -> Result<Value, Box<dyn Error + Send + Sync>> {
-        info!("Processando distribuição de idades dos pacientes");
+        println!("Processando distribuição de idades dos pacientes");
         
-        // Extrair idades e competências
+        // Verificar colunas do DataFrame
+        println!("Colunas disponíveis: {:?}", df.get_column_names());
+        
+        // Extrair dados
+        let idades_str = df.column("ifropacienteidade")?
+            .str()?
+            .into_iter()
+            .collect::<Vec<Option<&str>>>();
+        
+        let competencias = df.column("ifrocompetencia")?
+            .str()?
+            .into_iter()
+            .filter_map(|opt_s| opt_s.map(String::from))
+            .collect::<Vec<String>>();
+        
+        // Log de dados brutos
+        println!("Primeiras 5 idades (str): {:?}", &idades_str[..5]);
+        println!("Primeiras 5 competências: {:?}", &competencias[..5]);
+        
+        // Converter idades para i32
         let mut idades = Vec::new();
-        let mut competencias = Vec::new();
-        
-        for i in 0..df.height() {
-            // Obter idade e competência de cada linha
-            let idade_str = df.column("ifropacienteidade")?.str()?.get(i).unwrap_or("");
-            let competencia = df.column("ifrocompetencia")?.str()?.get(i).unwrap_or("").to_string();
-            
-            // Converter idade para número
-            let idade = idade_str.parse::<i32>().unwrap_or(-1);
-            
-            if idade >= 0 { // Ignorar valores inválidos
-                idades.push(idade);
-                competencias.push(competencia);
+        let mut invalid_ages = 0;
+        for s in idades_str {
+            match s.and_then(|v| v.parse::<i32>().ok()) {
+                Some(age) => idades.push(age),
+                None => {
+                    invalid_ages += 1;
+                    idades.push(-1);
+                }
             }
         }
+        println!("Total de idades inválidas: {}", invalid_ages);
         
-        info!("Extraídas {} idades válidas", idades.len());
-        
-        // Definir as faixas etárias
-        let age_groups = [
-            "0 a 19", "20 a 39", "40 a 59", "60 a 79", "80 a 100", "+ de 100"
+        // Definir faixas corretas (right=False como no Python)
+        let age_groups = vec![
+            ("0 a 19", 0..19),
+            ("20 a 39", 19..39),
+            ("40 a 59", 39..59),
+            ("60 a 79", 59..79),
+            ("80 a 100", 79..100),
+            ("+ de 100", 100..i32::MAX)
         ];
         
-        // Preparar contadores para cada faixa etária
-        let mut age_group_data: HashMap<String, HashMap<String, i64>> = HashMap::new();
-        for &group in &age_groups {
-            age_group_data.insert(group.to_string(), HashMap::new());
+        // Contadores
+        let mut age_data: HashMap<&str, HashMap<String, i64>> = HashMap::new();
+        for (group, _) in &age_groups {
+            age_data.insert(group, HashMap::new());
         }
         
-        // Classificar cada idade em sua faixa e contar
-        for i in 0..idades.len() {
-            let idade = idades[i];
-            let competencia = &competencias[i];
-            
-            let group = if idade <= 19 {
-                "0 a 19"
-            } else if idade <= 39 {
-                "20 a 39"
-            } else if idade <= 59 {
-                "40 a 59"
-            } else if idade <= 79 {
-                "60 a 79"
-            } else if idade <= 100 {
-                "80 a 100"
-            } else {
-                "+ de 100"
-            };
-            
-            // Incrementar contagem para esta competência e faixa etária
-            let comp_counts = age_group_data.get_mut(group).unwrap();
-            *comp_counts.entry(competencia.clone()).or_insert(0) += 1;
-        }
-        
-        // Criar o dicionário organizado final
-        let mut organized_data = HashMap::new();
-        
-        for group in age_groups {
-            let comp_counts = age_group_data.get(group).unwrap();
-            
-            // Calcular total para esta faixa etária
-            let total: i64 = comp_counts.values().sum();
-            
-            let mut age_data = HashMap::new();
-            age_data.insert("todos".to_string(), json!(total));
-            
-            // Adicionar contagens por competência
-            for (competencia, count) in comp_counts {
-                age_data.insert(competencia.clone(), json!(count));
+        // Classificar cada idade
+        for (i, &idade) in idades.iter().enumerate() {
+            if idade < 0 {
+                continue;
             }
             
-            organized_data.insert(group.to_string(), age_data);
+            let mut selected_group = "+ de 100";
+            for (group, range) in &age_groups {
+                if range.contains(&idade) {
+                    selected_group = *group;
+                    break;
+                }
+            }
+            
+            let competencia = &competencias[i];
+            *age_data
+                .get_mut(selected_group)
+                .unwrap()
+                .entry(competencia.clone())
+                .or_insert(0) += 1;
         }
         
-        info!("Processamento de distribuição de idades concluído com sucesso");
-        Ok(json!(organized_data))
+        // Construir resultado
+        let mut result = HashMap::new();
+        for (group, _) in &age_groups {
+            let counts = &age_data[group];
+            let total: i64 = counts.values().sum();
+            
+            let mut group_data = HashMap::new();
+            group_data.insert("todos".to_string(), json!(total));
+            
+            for (comp, count) in counts {
+                group_data.insert(comp.clone(), json!(count));
+            }
+            
+            result.insert(group.to_string(), json!(group_data));
+        }
+        
+        Ok(json!(result))
     }
+
 
 
     pub async fn create_dict_to_number_of_calls_per_day_of_the_week(&self, df: &DataFrame) -> Result<Value, Box<dyn Error + Send + Sync>> {

@@ -5,6 +5,7 @@ use crate::utils::process_data::create_dataframe_from_dict;
 use crate::AppError;
 use actix_web::{web, HttpResponse};
 use log::{info, error};
+use polars::frame::DataFrame;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
@@ -22,98 +23,94 @@ impl UpdateGraphDataService {
     }
     
     pub async fn update_data(&self) -> Result<HttpResponse, AppError> {
-        info!("Atualizando dados para gráficos");
+        info!("Iniciando atualização de dados para gráficos");
         
-        let informations_to_plot = DataProcessingForGraphPlotting::columns_to_plot_graphs();
-        
-        // Definir a lista de parâmetros para processamento
         let list_params = vec![
+            // Agendamentos por mês
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["number_of_appointments_per_month"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia"])),
                 ("identifier", Value::String("number_of_appointments_per_month".to_string())),
                 ("table_json", Value::String("number_of_appointments_per_month".to_string())),
                 ("method", Value::String("create_dict_to_number_of_appointments_per_month".to_string()))
             ]),
+            // Agendamentos por fluxo
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["number_of_appointments_per_flow"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia", "ifrotabelanome"])),
                 ("identifier", Value::String("number_of_appointments_per_flow".to_string())),
                 ("table_json", Value::String("number_of_appointments_per_flow".to_string())),
                 ("method", Value::String("create_dict_to_number_of_appointments_per_flow".to_string()))
             ]),
-            // Continuar com os demais parâmetros...
+            // Distribuição de idades
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["distribuition_of_patients_ages"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia", "ifropacienteidade"])),
                 ("identifier", Value::String("distribuition_of_patients_ages".to_string())),
                 ("table_json", Value::String("distribuition_of_patients_ages".to_string())),
                 ("method", Value::String("create_dict_to_distribuition_of_patients_ages".to_string()))
             ]),
+            // Chamadas por dia da semana
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["number_of_calls_per_day_of_the_week"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia", "ifrodiasemana"])),
                 ("identifier", Value::String("number_of_calls_per_day_of_the_week".to_string())),
                 ("table_json", Value::String("number_of_calls_per_day_of_the_week".to_string())),
                 ("method", Value::String("create_dict_to_number_of_calls_per_day_of_the_week".to_string()))
             ]),
+            // Serviços por grupo horário
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["distribution_of_services_by_hour_group"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia", "ifrohoraatendimento", "ifroprofissionalcbods"])),
                 ("identifier", Value::String("distribution_of_services_by_hour_group".to_string())),
                 ("table_json", Value::String("distribution_of_services_by_hour_group".to_string())),
                 ("method", Value::String("create_dict_to_distribution_of_services_by_hour_group".to_string()))
             ]),
+            // Visitas por enfermeiro
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["number_of_visits_per_nurse"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia", "ifroprofissionalid", "ifroprofissionalcbods", "ifroprofissionalnome", "ifrotabelanome"])),
                 ("identifier", Value::String("number_of_visits_per_nurse".to_string())),
                 ("table_json", Value::String("number_of_visits_per_nurse".to_string())),
                 ("method", Value::String("create_dict_to_number_of_visits_per_nurse".to_string()))
             ]),
+            // Atendimentos por médico
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["number_of_visits_per_doctor"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia", "ifroprofissionalid", "ifroprofissionalcbods", "ifroprofissionalnome", "ifrotabelanome"])),
                 ("identifier", Value::String("number_of_visits_per_doctor".to_string())),
                 ("table_json", Value::String("number_of_visits_per_doctor".to_string())),
                 ("method", Value::String("create_dict_to_number_of_visits_per_doctor".to_string()))
             ]),
+            // Tempo médio por médico
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["average_time_per_doctor"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia", "ifrohoraatendimento", "ifroprofissionalid", "ifroprofissionalcbods", "ifroprofissionalnome", "ifrotabelanome"])),
                 ("identifier", Value::String("average_time_per_doctor".to_string())),
                 ("table_json", Value::String("average_time_per_doctor".to_string())),
                 ("method", Value::String("create_dict_to_average_time_in_minutes_per_doctor".to_string()))
             ]),
+            // Mapa de calor por doença
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["heat_map_with_disease_indication"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia", "ifropacienteendereco", "ifropacientebairro", "ifropacientequeixaprincipal", "ifropacientelatitude", "ifropacientelongitude"])),
                 ("identifier", Value::String("heat_map_with_disease_indication".to_string())),
                 ("table_json", Value::String("heat_map_with_disease_indication".to_string())),
                 ("method", Value::String("create_dictionary_with_location_and_number_per_disease".to_string()))
             ]),
+            // Mapa de calor por bairro
             HashMap::from([
-                ("table", Value::String(informations_to_plot["tables"]["bpa"].as_str().unwrap_or("bpa").to_string())),
-                ("column", informations_to_plot["columns"]["heat_map_with_the_number_of_medical_appointments_by_neighborhood"].clone()),
+                ("table", Value::String("bpa".to_string())),
+                ("column", json!(["ifrocompetencia", "ifropacienteendereco", "ifropacientebairro", "ifropacientelatitude", "ifropacientelongitude"])),
                 ("identifier", Value::String("heat_map_with_the_number_of_medical_appointments_by_neighborhood".to_string())),
                 ("table_json", Value::String("heat_map_with_the_number_of_medical_appointments_by_neighborhood".to_string())),
                 ("method", Value::String("create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood".to_string()))
             ])
         ];
 
-        // Buscar dados da tabela
-
-        let result_dict = match self.repo.fetch_all_data("bpa").await {
-            Ok(data) => data,
-            Err(e) => {
-                error!("Erro ao buscar dados da tabela {}: {}", "bpa", e);
-                return Err(AppError::InternalServerError);
-            }
-        };
-        
-        // Processar cada parâmetro
+        // Processa cada parâmetro
         for params in list_params {
-            //let table = params["table"].as_str().unwrap();
+            let table = params["table"].as_str().unwrap();
             let columns = params["column"].as_array().unwrap()
                 .iter()
                 .map(|v| v.as_str().unwrap().to_string())
@@ -122,130 +119,121 @@ impl UpdateGraphDataService {
             let table_json = params["table_json"].as_str().unwrap();
             let method_name = params["method"].as_str().unwrap();
             
-            let filtered_data: HashMap<String, Vec<Value>> = result_dict.clone().into_iter()
-                .filter(|(key, _)| columns.contains(key))
-                .collect();
+            // Busca dados específicos
+            let result_dict = match self.repo.fetch_columns_by_name(table, &columns).await {
+                Ok(data) => data,
+                Err(e) => {
+                    error!("Erro ao buscar {} em {}: {}", identifier, table, e);
+                    return Err(AppError::DatabaseError(e.to_string()));
+                }
+            };
 
-            if filtered_data.is_empty() {
-                error!("Erro atualizando dados: nenhum dado encontrado");
-                return Err(AppError::BadRequest("Nenhum dado encontrado".to_string()));
+            if result_dict.is_empty() {
+                error!("Dados vazios para {}", identifier);
+                return Err(AppError::NotFound(format!("Dados não encontrados para {}", identifier)));
             }
-            
-            // Converter para DataFrame
-            let df = match create_dataframe_from_dict(&filtered_data) {
+
+            // Cria DataFrame
+            let df = match create_dataframe_from_dict(&result_dict) {
                 Ok(df) => df,
                 Err(e) => {
-                    error!("Erro ao criar DataFrame: {}", e);
-                    return Err(AppError::InternalServerError);
+                    error!("Erro ao criar DataFrame para {}: {}", identifier, e);
+                    return Err(AppError::DataProcessingError(e.to_string()));
                 }
             };
-            
-            // Executar o método apropriado
-            let organized_data = match method_name {
-                "create_dict_to_number_of_appointments_per_month" => {
-                    self.data_processing.create_dict_to_number_of_appointments_per_month(&df).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })?
+
+            // Processamento condicional, pois necessita de outros dados além da tabela bpa
+            let organized_data = match identifier {
+                "number_of_visits_per_doctor" | "average_time_per_doctor" => {
+                    let non_doctors = self.get_additional_data("non_doctors").await?;
+                    self.call_processing_method(method_name, &df, Some(&non_doctors)).await?
                 },
-                "create_dict_to_number_of_appointments_per_flow" => {
-                    self.data_processing.create_dict_to_number_of_appointments_per_flow(&df).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })?
+                "number_of_visits_per_nurse" => {
+                    let non_nurse = self.get_additional_data("non_nurse").await?;
+                    self.call_processing_method(method_name, &df, Some(&non_nurse)).await?
                 },
-                "create_dict_to_distribuition_of_patients_ages" => {
-                    self.data_processing.create_dict_to_distribuition_of_patients_ages(&df).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })?
-                },
-                "create_dict_to_number_of_calls_per_day_of_the_week" => {
-                    self.data_processing.create_dict_to_number_of_calls_per_day_of_the_week(&df).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })?
-                },
-                "create_dict_to_distribution_of_services_by_hour_group" => {
-                    self.data_processing.create_dict_to_distribution_of_services_by_hour_group(&df).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })?
-                },
-                "create_dict_to_number_of_visits_per_nurse" => {
-                    // Buscar dados adicionais
-                    let non_nurse_table = informations_to_plot["tables"]["non_nurse"].as_str().unwrap();
-                    let result_non_nurse = self.repo.fetch_all_data(non_nurse_table).await
-                        .map_err(|e| { error!("Error fetching data for non_nurse: {}", e); AppError::InternalServerError })?;
-                    let df_non_nurse = create_dataframe_from_dict(&result_non_nurse)
-                        .map_err(|e| { error!("Error creating dataframe for non_nurse: {}", e); AppError::InternalServerError })?;
-                    
-                    self.data_processing.create_dict_to_number_of_visits_per_nurse(&df, &df_non_nurse).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })?
-                }, // Added closing brace and comma
-                "create_dict_to_number_of_visits_per_doctor" => {
-                    // Buscar dados adicionais
-                    let non_doctors_table = informations_to_plot["tables"]["non_doctors"].as_str().unwrap();
-                    let result_non_doctors = self.repo.fetch_all_data(non_doctors_table).await
-                        .map_err(|e| { error!("Error fetching data for non_doctors: {}", e); AppError::InternalServerError })?;
-                    let df_non_doctors = create_dataframe_from_dict(&result_non_doctors)
-                        .map_err(|e| { error!("Error creating dataframe for non_doctors: {}", e); AppError::InternalServerError })?;
-                    // Removed duplicate map_err line
-                    
-                    self.data_processing.create_dict_to_number_of_visits_per_doctor(&df, &df_non_doctors).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })? // Added map_err and ?
-                }, // Added closing brace and comma
-                "create_dict_to_average_time_in_minutes_per_doctor" => {
-                    // Buscar dados adicionais
-                    let non_doctors_table = informations_to_plot["tables"]["non_doctors"].as_str().unwrap();
-                    let result_non_doctors = self.repo.fetch_all_data(non_doctors_table).await
-                        .map_err(|e| { error!("Error fetching data for non_doctors: {}", e); AppError::InternalServerError })?;
-                    let df_non_doctors = create_dataframe_from_dict(&result_non_doctors)
-                        .map_err(|e| { error!("Error creating dataframe for non_doctors: {}", e); AppError::InternalServerError })?;
-                    // Removed duplicate map_err line
-                    
-                    self.data_processing.create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })?
-                },
-                "create_dictionary_with_location_and_number_per_disease" => {
-                    self.data_processing.create_dictionary_with_location_and_number_per_disease(&df).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })?
-                },
-                "create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood" => {
-                    self.data_processing.create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(&df).await
-                        .map_err(|e| { error!("Error processing data for {}: {}", method_name, e); AppError::InternalServerError })?
-                },
-                _ => {
-                    error!("Método desconhecido: {}", method_name);
-                    return Err(AppError::BadRequest(format!("Método desconhecido: {}", method_name)));
-                }
+                _ => self.call_processing_method(method_name, &df, None).await?,
             };
-            
-            if organized_data.is_null() {
-                error!("Erro atualizando dados: dados organizados estão vazios para {}", identifier);
-                return Err(AppError::InternalServerError);
-            }
-            
-            // Inserir os dados processados
-            let identifier_str = params["identifier"].as_str().ok_or_else(|| {
-                error!("Identifier is not a string for method {}", method_name);
-                AppError::InternalServerError
-            })?;
-            
-        
-            let result = match self.repo.insert_nested_json(organized_data, table_json, identifier_str).await {
-                Ok(result) => result,
-                Err(e) => {
-                    error!("Erro ao inserir dados na tabela JSON: {}", e);
-                    return Err(AppError::InternalServerError);
-                }
-                
-            };
-            
-            if !result["added"].as_bool().unwrap_or(false) {
-                error!("Erro ao inserir dados na tabela JSON para {}", identifier);
-                return Err(AppError::InternalServerError);
+
+            // Salva dados
+            if let Err(e) = self.save_processed_data(organized_data, table_json, identifier).await {
+                error!("Falha ao salvar {}: {}", identifier, e);
+                return Err(e);
             }
         }
-        
-        // Retornar sucesso
-        let response = HttpResponse::Ok().json(json!({
+
+        Ok(HttpResponse::Ok().json(json!({
             "detail": {
                 "message": "Dados atualizados com sucesso",
                 "status_code": 200
             }
-        }));
-        
-        Ok(response)
+        })))
+    }
+
+    // Funções Auxiliares 
+    async fn get_additional_data(&self, table: &str) -> Result<DataFrame, AppError> {
+        let data = self.repo.fetch_all_data(table)
+            .await
+            .map_err(|e| {
+                error!("Erro ao buscar dados auxiliares da tabela {}: {}", table, e);
+                AppError::DatabaseError(e.to_string())
+            })?;
+
+        create_dataframe_from_dict(&data)
+            .map_err(|e| {
+                error!("Erro ao criar DataFrame para dados auxiliares da tabela {}: {}", table, e);
+                AppError::DataProcessingError(e.to_string())
+            })
+    }
+
+    async fn call_processing_method(
+        &self,
+        method: &str,
+        main_df: &DataFrame,
+        additional_df: Option<&DataFrame>
+    ) -> Result<Value, AppError> {
+        match (method, additional_df) {
+            ("create_dict_to_number_of_appointments_per_month", None) =>
+                self.data_processing.create_dict_to_number_of_appointments_per_month(main_df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            ("create_dict_to_number_of_appointments_per_flow", None) =>
+                self.data_processing.create_dict_to_number_of_appointments_per_flow(main_df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            ("create_dict_to_distribuition_of_patients_ages", None) =>
+                self.data_processing.create_dict_to_distribuition_of_patients_ages(main_df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            ("create_dict_to_number_of_calls_per_day_of_the_week", None) =>
+                self.data_processing.create_dict_to_number_of_calls_per_day_of_the_week(main_df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            ("create_dict_to_distribution_of_services_by_hour_group", None) =>
+                self.data_processing.create_dict_to_distribution_of_services_by_hour_group(main_df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            ("create_dict_to_number_of_visits_per_nurse", Some(df)) =>
+                self.data_processing.create_dict_to_number_of_visits_per_nurse(main_df, df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            ("create_dict_to_number_of_visits_per_doctor", Some(df)) =>
+                self.data_processing.create_dict_to_number_of_visits_per_doctor(main_df, df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            ("create_dict_to_average_time_in_minutes_per_doctor", Some(df)) =>
+                self.data_processing.create_dict_to_average_time_in_minutes_per_doctor(main_df, df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            ("create_dictionary_with_location_and_number_per_disease", None) =>
+                self.data_processing.create_dictionary_with_location_and_number_per_disease(main_df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            ("create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood", None) =>
+                self.data_processing.create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(main_df).await
+                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            _ => Err(AppError::InvalidMethodError(format!("Método '{}' inválido ou dados adicionais incorretos", method)))
+        }
+    }
+
+    async fn save_processed_data(&self, data: Value, table: &str, identifier: &str) -> Result<(), AppError> {
+        self.repo.insert_nested_json(data, table, identifier)
+            .await
+            .map(|_| ())
+            .map_err(|e| {
+                error!("Erro ao salvar em {}: {}", table, e);
+                AppError::DatabaseError(e.to_string()) 
+            })
     }
 }
