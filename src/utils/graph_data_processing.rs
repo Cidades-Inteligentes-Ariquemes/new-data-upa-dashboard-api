@@ -49,7 +49,7 @@ impl DataProcessingForGraphPlotting {
             .filter_map(|opt_s| opt_s.map(String::from))
             .collect::<Vec<String>>();
         
-        // Fazer contagem manual
+        // Fazer contagem
         let mut counts: HashMap<String, i64> = HashMap::new();
         for comp in comp_values {
             *counts.entry(comp).or_insert(0) += 1;
@@ -646,9 +646,9 @@ impl DataProcessingForGraphPlotting {
             };
             
             // Formatar tempo médio total
-            let total_minutes = avg_total as i32;
-            let total_seconds = ((avg_total - total_minutes as f64) * 60.0) as i32;
-            let total_formatted = format!("{:02}:{:02}", total_minutes, total_seconds);
+            let total_hours = (avg_total / 60.0).floor() as i32;
+            let total_mins = (avg_total % 60.0).round() as i32;
+            let total_formatted = format!("{:02}:{:02}", total_hours, total_mins);
             
             // Iniciar dados do médico
             let mut doctor_data = HashMap::new();
@@ -680,11 +680,11 @@ impl DataProcessingForGraphPlotting {
                 } else {
                     0.0
                 };
-                
-                // Formatar tempo médio da competência
-                let comp_minutes = avg_comp as i32;
-                let comp_seconds = ((avg_comp - comp_minutes as f64) * 60.0) as i32;
-                let comp_formatted = format!("{:02}:{:02}", comp_minutes, comp_seconds);
+
+                // Formatar tempo médio por competência
+                let comp_hours = (avg_comp / 60.0).floor() as i32;
+                let comp_mins = (avg_comp % 60.0).round() as i32;
+                let comp_formatted = format!("{:02}:{:02}", comp_hours, comp_mins);
                 
                 doctor_data.insert(competencia, json!(comp_formatted));
             }
@@ -799,7 +799,7 @@ impl DataProcessingForGraphPlotting {
     pub async fn create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(&self, df: &DataFrame) -> Result<Value, Box<dyn Error + Send + Sync>> {
         println!("Processando mapa de calor com o número de atendimentos médicos por bairro");
         
-        // Extrair todos os dados relevantes
+        // Extrai todos os dados relevantes
         let mut dados_validos = Vec::new();
         
         for i in 0..df.height() {
@@ -821,7 +821,7 @@ impl DataProcessingForGraphPlotting {
             }
         }
         
-        // Agrupar e contar por bairro
+        // Agrupa e contar por bairro
         let mut bairro_dados: HashMap<String, (f64, f64, i64)> = HashMap::new();
         
         for (bairro, lat, long) in dados_validos {
@@ -829,7 +829,7 @@ impl DataProcessingForGraphPlotting {
             entry.2 += 1;
         }
         
-        // Construir o dicionário organizado final
+        // Constroi o dicionário organizado final
         let mut organized_data = HashMap::new();
         
         for (bairro, (lat, long, quantidade)) in bairro_dados {

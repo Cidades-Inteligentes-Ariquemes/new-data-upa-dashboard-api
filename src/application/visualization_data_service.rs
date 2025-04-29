@@ -1,5 +1,4 @@
 use log::{error, info};
-use serde_json::json;
 use std::collections::HashSet;
 use actix_web::{web, HttpResponse};
 use crate::domain::repositories::data_upa::DataRepository;
@@ -29,10 +28,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Number of appointments per month fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Number of appointments per month fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching number of appointments per month: {:?}", e);
@@ -70,10 +66,7 @@ impl VisualizationDataService {
                 let sorted_data: serde_json::Map<String, serde_json::Value> = sorted_data_vec.into_iter().collect();
                 
                 info!("Number of appointments per year fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Number of appointments per year fetched successfully",
-                    "data": sorted_data
-                })).into_response())
+                Ok(ApiResponse::success(sorted_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching number of appointments per year: {:?}", e);
@@ -105,10 +98,7 @@ impl VisualizationDataService {
                 let years_vec: Vec<String> = years.into_iter().collect();
                 
                 info!("Years available fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Years available for number of appointments per month fetched successfully",
-                    "years_available": years_vec
-                })).into_response())
+                Ok(ApiResponse::success(years_vec).into_response())
             },
             Err(e) => {
                 error!("Error fetching years available: {:?}", e);
@@ -130,10 +120,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Number of appointments per flow fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Number of appointments per flow fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching number of appointments per flow: {:?}", e);
@@ -155,10 +142,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Distribuition of patients ages fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Distribuition of patients ages fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching distribuition of patients ages: {:?}", e);
@@ -180,10 +164,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Number of calls per day of the week fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Number of calls per day of the week fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching number of calls per day of the week: {:?}", e);
@@ -205,10 +186,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Distribution of services by hour group fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Distribution of services by hour group fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching distribution of services by hour group: {:?}", e);
@@ -230,10 +208,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Number of visits per nurse fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Number of visits per nurse fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching number of visits per nurse: {:?}", e);
@@ -255,10 +230,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Number of visits per doctor fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Number of visits per doctor fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching number of visits per doctor: {:?}", e);
@@ -280,10 +252,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Average time in minutes per doctor fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Average time in minutes per doctor fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching average time in minutes per doctor: {:?}", e);
@@ -305,10 +274,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Heat map with disease indication fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Heat map with disease indication fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching heat map with disease indication: {:?}", e);
@@ -330,10 +296,7 @@ impl VisualizationDataService {
                 let corrected_data = self.correct_keys(data);
                 
                 info!("Heat map with appointments by neighborhood fetched successfully");
-                Ok(ApiResponse::success(json!({
-                    "message": "Heat map with the number of medical appointments by neighborhood fetched successfully",
-                    "data": corrected_data
-                })).into_response())
+                Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
                 error!("Error fetching heat map with appointments by neighborhood: {:?}", e);

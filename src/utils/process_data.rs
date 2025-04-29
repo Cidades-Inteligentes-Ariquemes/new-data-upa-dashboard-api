@@ -193,7 +193,7 @@ pub fn normalize_text_to_upper_case_columns_lazy(lf: LazyFrame, column_names: &[
 }
 
 
-// /// Lista de doenças mais comuns
+// Lista de doenças mais comuns
 pub fn list_of_most_common_diseases() -> Vec<&'static str> {
     vec![
         "dengue",
@@ -347,7 +347,7 @@ fn get_portuguese_stopwords() -> HashSet<String> {
 }
 
 
-/// Função otimizada para vetorizar textos (TF-IDF com normalização)
+/// Função para vetorizar textos (TF-IDF com normalização)
 fn vectorize_texts(texts: &[String], stopwords: &HashSet<String>, stemmer: &Stemmer) -> (Array2<f64>, Vec<String>) {
     // Extrair termos de todos os textos
     let mut all_terms = HashSet::new();
@@ -359,17 +359,17 @@ fn vectorize_texts(texts: &[String], stopwords: &HashSet<String>, stemmer: &Stem
         doc_terms.push(terms);
     }
 
-    // Converter para vetor ordenado
+    // Converte para vetor ordenado
     let terms_vec: Vec<String> = all_terms.into_iter().collect();
 
-    // Criar matriz documento-termo
+    // Cria matriz documento-termo
     let n_docs = texts.len();
     let n_terms = terms_vec.len();
 
     // Criar uma matriz preenchida com zeros
     let mut matrix = Array2::<f64>::zeros((n_docs, n_terms));
 
-    // Preencher a matriz com contagens de termos (TF)
+    // Preenche a matriz com contagens de termos (TF)
     for (doc_idx, terms) in doc_terms.iter().enumerate() {
         for term in terms {
             if let Some(term_idx) = terms_vec.iter().position(|t| t == term) {
@@ -378,7 +378,7 @@ fn vectorize_texts(texts: &[String], stopwords: &HashSet<String>, stemmer: &Stem
         }
     }
 
-    // Calcular IDF e aplicar TF-IDF
+    // Calcula IDF e aplicar TF-IDF
     let n_docs_f64 = n_docs as f64;
 
     for term_idx in 0..n_terms {
@@ -395,7 +395,7 @@ fn vectorize_texts(texts: &[String], stopwords: &HashSet<String>, stemmer: &Stem
         }
     }
 
-    // NOVO: Normalização L2 (Euclidiana) por linha
+    // Normalização  (Euclidiana) por linha
     for doc_idx in 0..n_docs {
         let row = matrix.row(doc_idx);
         let norm: f64 = row.iter().map(|&v| v * v).sum::<f64>().sqrt();
@@ -421,7 +421,7 @@ fn tokenize_and_stem(text: &str, stopwords: &HashSet<String>, stemmer: &Stemmer)
         .map(|s| s.to_string())
         .collect();
 
-    // Remover stopwords e aplicar stemming
+    // Remove stopwords e aplica stemming
     tokens
         .into_iter()
         .filter(|token| !stopwords.contains(token))
@@ -648,7 +648,7 @@ pub fn get_disease_symptoms() -> HashMap<&'static str, Vec<&'static str>> {
 
 
 
-/// Versão modificada de extract_keyword_kmeans para usar a abordagem híbrida
+/// Função extract_keyword_kmeans
 pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
     // Verificar se o DataFrame tem a coluna necessária
     if !df.schema().iter().any(|(name, _)| name == "IfroConsultaConduta") {
@@ -657,17 +657,17 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
         ));
     }
 
-    // Usar uma referência ao DataFrame sempre que possível para evitar clones desnecessários
+    // Usa uma referência ao DataFrame sempre que possível para evitar clones desnecessários
     let mut df_result = df.clone();
 
-    // Obter a coluna de texto
+    // Obtem a coluna de texto
     let conduta_col = df.column("IfroConsultaConduta")?;
 
     // Cast to StringChunked to iterate over string values
-    let conduta_series_string = conduta_col.cast(&DataType::String)?; // Cast to String type first
-    let conduta_utf8 = conduta_series_string.str()?; // Now call str() to get StringChunked
+    let conduta_series_string = conduta_col.cast(&DataType::String)?;
+    let conduta_utf8 = conduta_series_string.str()?; 
 
-    // Preencher valores nulos com "não especificado" e converter para lowercase
+    // Preenche valores nulos com "não especificado" e converter para lowercase
     let condutas: Vec<String> = conduta_utf8
         .iter()
         .map(|opt_s| {
@@ -681,7 +681,7 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
     // Vetor para armazenar as queixas diagnosticadas
     let mut queixas = Vec::with_capacity(condutas.len());
 
-    // Coletar índices e condutas que precisam do K-means
+    // Coleta índices e condutas que precisam do K-means
     let mut condutas_kmeans = Vec::new();
     let mut indices_kmeans = Vec::new();
 
@@ -692,7 +692,7 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
             continue;
         }
 
-        // Tentar diagnosticar com base nos sintomas
+        // Tenta diagnosticar com base nos sintomas
         let (doenca, pontuacao) = diagnosticar_doenca_com_pontuacao(conduta);
         let doenca_normalizada = apply_decision_rules(conduta, &doenca);
         if pontuacao >= 50.0 {
@@ -712,22 +712,21 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
 
     // Se temos casos para o K-means, processá-los
     if !condutas_kmeans.is_empty() {
-        // Aqui adaptamos o código do K-means original
-        // Obter a lista de doenças
+        // Obtem a lista de doenças
         let diseases = list_of_most_common_diseases();
         let n_clusters = std::cmp::min(diseases.len() - 1, condutas_kmeans.len()); // Excluindo "não especificado"
 
-        // Processar texto: remover stopwords, aplicar stemming, etc.
+        // Processa texto: remove stopwords, aplica stemming, etc.
         let stemmer = Stemmer::create(Algorithm::Portuguese);
         let stopwords = get_portuguese_stopwords();
 
-        // Vetorizar os textos (TF-IDF simplificado)
+        // Vetorizaros textos (TF-IDF simplificado)
         let (document_term_matrix, terms) = vectorize_texts(&condutas_kmeans, &stopwords, &stemmer);
 
-        // Aplicar K-means
+        // Aplica K-means
         let dataset = Dataset::from(document_term_matrix);
 
-        // Executar K-means - com tratamento de erro adequado
+        // Executa K-means - com tratamento de erro adequado
         let kmeans = KMeans::params(n_clusters)
             .max_n_iterations(100)
             .tolerance(1e-5)
@@ -739,15 +738,15 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
         // Predizer clusters
         let preds = kmeans.predict(&dataset);
 
-        // Calcular palavras mais importantes em cada cluster
+        // Calcula palavras mais importantes em cada cluster
         let mut cluster_important_terms: Vec<Vec<&String>> = Vec::with_capacity(n_clusters);
         let centroids = kmeans.centroids();
 
         for cluster_idx in 0..n_clusters {
-            // Obter o centroide do cluster
+            // Obte o centroide do cluster
             let centroid = centroids.row(cluster_idx);
 
-            // Criar pares (termo, valor) e ordenar por valor decrescente
+            // Cria pares (termo, valor) e ordena por valor decrescente
             let mut term_scores: Vec<(&String, f64)> = terms.iter()
                 .enumerate()
                 .map(|(term_idx, term)| (term, centroid[term_idx]))
@@ -755,7 +754,7 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
 
             term_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-            // Pegar os 5 termos mais importantes (ou menos se não houver 5)
+            // Pega os 5 termos mais importantes (ou menos se não houver 5)
             let top_n = std::cmp::min(5, term_scores.len());
             let top_terms: Vec<&String> = term_scores.iter()
                 .take(top_n)
@@ -765,13 +764,13 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
             cluster_important_terms.push(top_terms);
         }
 
-        // Mapear clusters para doenças considerando tanto o nome quanto os sintomas
+        // Mapea clusters para doenças considerando tanto o nome quanto os sintomas
         let mut cluster_to_disease = HashMap::new();
 
         for cluster_idx in 0..n_clusters {
             let top_terms = &cluster_important_terms[cluster_idx];
 
-            // Calcular pontuação de similaridade para cada doença
+            // Calcula pontuação de similaridade para cada doença
             let mut best_disease = "não especificado";
             let mut best_score = 0.0;
 
@@ -788,7 +787,7 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
                     .map(|word| stemmer.stem(word).to_string())
                     .collect();
 
-                // Calcular pontuação baseada no número de termos em comum
+                // Calcula pontuação baseada no número de termos em comum
                 let mut score = 0.0;
 
                 // Pontuação por correspondência de termos
@@ -825,7 +824,7 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
             cluster_to_disease.insert(cluster_idx, best_disease.to_string());
         }
 
-        // Preencher queixas para os textos que precisam do K-means
+        // Preenche queixas para os textos que precisam do K-means
         for (i_local, &i_global) in indices_kmeans.iter().enumerate() {
             let cluster = preds[i_local];
             let conduta = &condutas_kmeans[i_local];
@@ -840,7 +839,7 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
         }
     }
 
-    // Adicionar a coluna ao DataFrame
+    // Adiciona a coluna ao DataFrame
     let queixas_series = Series::new("IfroPacienteQueixaPrincipal".into(), queixas);
     df_result.with_column(queixas_series)?;
 
@@ -849,29 +848,23 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
 
 
 
-/// Versão melhorada de diagnosticar_doenca_com_pontuacao com detecção mais precisa
+/// Função para diagnosticar_doenca_com_pontuacao com detecção mais precisa
 
 fn diagnosticar_doenca_com_pontuacao(sintomas: &str) -> (String, f64) {
-    // Normalizar sintomas (converter para minúsculas e remover acentos)
     let sintomas_normalizados = sintomas.to_lowercase();
 
-    // Pontuação para cada doença
     let mut pontuacao_doencas = HashMap::new();
 
-    // Obter o dicionário de sintomas
     let dicionario_sintomas = get_disease_symptoms();
 
-    // Calcular a pontuação para cada doença de forma mais robusta
     for (doenca, sintomas_doenca) in dicionario_sintomas.iter() {
         let mut pontos_totais = 0;
         let mut sintomas_encontrados = 0;
 
         for &sintoma in sintomas_doenca {
-            // Verificar se o sintoma está contido no texto
             if sintomas_normalizados.contains(sintoma) {
                 sintomas_encontrados += 1;
 
-                // Dar mais peso para sintomas específicos ou raros
                 let peso = match sintoma {
                     // Sintomas muito específicos recebem peso maior
                     "perda de olfato" | "perda de paladar" | "icterícia" | "hidrofobia" => 2,
@@ -910,7 +903,7 @@ fn diagnosticar_doenca_com_pontuacao(sintomas: &str) -> (String, f64) {
         }
     }
 
-    // Encontrar a doença com maior pontuação
+    // Encontra a doença com maior pontuação
     if !pontuacao_doencas.is_empty() {
         let (doenca_mais_provavel, pontuacao_maxima) = pontuacao_doencas
             .iter()
@@ -925,18 +918,13 @@ fn diagnosticar_doenca_com_pontuacao(sintomas: &str) -> (String, f64) {
 
 
 
-pub fn standardize_neighborhood_names(
-    df_bpa: DataFrame,
-    df_neighborhood: DataFrame,
-) -> PolarsResult<DataFrame> {
-    // Processamento do DataFrame de bairros
+pub fn standardize_neighborhood_names(df_bpa: DataFrame, df_neighborhood: DataFrame,) -> PolarsResult<DataFrame> {
     let df_neighborhood = df_neighborhood
         .lazy()
         .group_by(["bairro"])
         .agg([all().first()]) // Garante entradas únicas pegando a primeira ocorrência de cada bairro
         .collect()?;
 
-    // Join e transformações
     df_bpa
         .lazy()
         .join(
@@ -1134,7 +1122,7 @@ pub fn create_dataframe_from_dict(data: &HashMap<String, Vec<Value>>) -> PolarsR
                     .collect();
                 series_vec.push(Series::new(column_name.into(), bool_values).into());
             },
-            // Default to string type if type can't be determined
+            // Default to a string type if type can't be determined
             _ => {
                 let string_values: Vec<&str> = values
                     .iter()

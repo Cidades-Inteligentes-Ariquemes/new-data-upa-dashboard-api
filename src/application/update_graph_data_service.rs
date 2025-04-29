@@ -2,7 +2,7 @@ use crate::domain::repositories::data_upa::DataRepository;
 use crate::infrastructure::repositories::data_upa_repository::PgDataRepository;
 use crate::utils::graph_data_processing::DataProcessingForGraphPlotting;
 use crate::utils::process_data::create_dataframe_from_dict;
-use crate::AppError;
+use crate::{ApiResponse, AppError};
 use actix_web::{web, HttpResponse};
 use log::{info, error};
 use polars::frame::DataFrame;
@@ -162,12 +162,7 @@ impl UpdateGraphDataService {
             }
         }
 
-        Ok(HttpResponse::Ok().json(json!({
-            "detail": {
-                "message": "Dados atualizados com sucesso",
-                "status_code": 200
-            }
-        })))
+        Ok(ApiResponse::updated(()).into_response())
     }
 
     // Funções Auxiliares 
@@ -186,12 +181,7 @@ impl UpdateGraphDataService {
             })
     }
 
-    async fn call_processing_method(
-        &self,
-        method: &str,
-        main_df: &DataFrame,
-        additional_df: Option<&DataFrame>
-    ) -> Result<Value, AppError> {
+    async fn call_processing_method(&self, method: &str, main_df: &DataFrame, additional_df: Option<&DataFrame>) -> Result<Value, AppError> {
         match (method, additional_df) {
             ("create_dict_to_number_of_appointments_per_month", None) =>
                 self.data_processing.create_dict_to_number_of_appointments_per_month(main_df).await
