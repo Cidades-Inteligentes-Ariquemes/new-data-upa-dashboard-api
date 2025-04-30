@@ -4,3 +4,4 @@
 .idea
 backup-dados-upa.sql
 docker-compose.yml
+ml_models_api/app/models

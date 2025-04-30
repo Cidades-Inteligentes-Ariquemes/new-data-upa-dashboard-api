@@ -7,30 +7,27 @@ use new_data_upa_dashboard_api::{
    adapters::{
         password::encryptor::Argon2PasswordEncryptor,
         token::generate_token::JwtTokenGenerator,
-   },
-   application::{
-        auth_service::AuthService,
-        auth_pronto_service::AuthProntoService,
-        user_service::UserService,
-        machine_information_service::MachineInformationService,
-        data_upa_service::DataUpaService,
-        update_graph_data_service::UpdateGraphDataService,
-        visualization_data_service::VisualizationDataService,
-   },
-   infrastructure::{
+   }, application::{
+        auth_pronto_service::AuthProntoService, 
+        auth_service::AuthService, 
+        data_upa_service::DataUpaService, 
+        machine_information_service::MachineInformationService, 
+        prediction_service::PredictionService, 
+        update_graph_data_service::UpdateGraphDataService, 
+        user_service::UserService, 
+        visualization_data_service::VisualizationDataService
+   }, infrastructure::{
         database::init_database,
         repositories::{
-            user_repository::PgUserRepository,
-            auth_pronto_repository::SqlServerAuthProntoRepository,
-            data_upa_repository::PgDataRepository,
+            audit_repository::PgAuditRepository, 
+            auth_pronto_repository::SqlServerAuthProntoRepository, 
+            data_upa_repository::PgDataRepository, 
+            user_repository::PgUserRepository
         },
-   },
-   middleware::{
-       auth::AuthMiddleware,
-       logging::LoggingMiddleware,
-   },
-   routes::config::routes::configure_routes,
-   utils::config_env::Config,
+   }, middleware::{
+       audit::AuditMiddleware, auth::AuthMiddleware, logging::LoggingMiddleware
+   }, 
+   routes::config::routes::configure_routes, utils::config_env::Config
 };
 
 
@@ -56,9 +53,8 @@ async fn main() -> std::io::Result<()> {
 
    // Cria os repositórios
    let user_repository = web::Data::new(PgUserRepository::new(pool.clone()));
-
-    // Cria o repositório de dados UPA
-    let data_repository = web::Data::new(PgDataRepository::new(pool.clone()));
+   let data_repository = web::Data::new(PgDataRepository::new(pool.clone()));
+   let audit_repository = web::Data::new(PgAuditRepository::new(pool.clone()));
    
    info!("Repositórios criados");
 
@@ -74,6 +70,7 @@ async fn main() -> std::io::Result<()> {
    let visualization_data_service = web::Data::new(VisualizationDataService::new(
        data_repository.clone(),
    ));
+
 
    info!("Serviço de dados UPA criado");
 
@@ -93,6 +90,9 @@ async fn main() -> std::io::Result<()> {
    ));
 
    let machine_information_service = web::Data::new(MachineInformationService);
+
+   let ml_api_url = config.ml_api_url.clone();
+   let prediction_service = web::Data::new(PredictionService::new(ml_api_url));
 
    let server_addr = config.server_addr.clone();
    info!("Server será iniciado em: http://{}", server_addr);
@@ -114,14 +114,20 @@ async fn main() -> std::io::Result<()> {
            .allow_any_header()
            .max_age(3600);
 
+       
+       let audit_middleware = AuditMiddleware::new(audit_repository.clone());
+
        App::new()
             .wrap(cors)
             .wrap(Logger::default())
             .wrap(LoggingMiddleware)
+            .wrap(audit_middleware)
             .wrap(AuthMiddleware)
             .app_data(user_repository.clone())
             .app_data(data_repository.clone())
+            .app_data(audit_repository.clone())
             .app_data(data_upa_service.clone())
+            .app_data(prediction_service.clone())
             .app_data(update_graph_data_service.clone())
             .app_data(visualization_data_service.clone())
             .app_data(user_service.clone())

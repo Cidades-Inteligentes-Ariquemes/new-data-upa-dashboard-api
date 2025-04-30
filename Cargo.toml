@@ -48,9 +48,8 @@ regex = "1.10.2"
 lazy_static = "1.4.0"
 
 chrono = { version = "0.4", features = ["serde"] }
-reqwest = { version = "0.12.12", features = ["json"] }
+reqwest = { version = "0.12.12", features = ["json", "multipart"] }
 rand = "0.8.5"
-
 # machine information
 
 sysinfo = { version = "0.33.1", features = ["disk"] }
@@ -67,7 +66,7 @@ md5 = "0.7.0"
 polars = { version = "0.46", features = ["lazy", "csv", "temporal", "regex", "strings", "dtype-array"] }
 linfa = "0.6.1"
 linfa-clustering = "0.6.1"
-ndarray = "0.15.6"
+#ndarray = "0.15.6"
 ndarray-stats = "0.5.1"
 rust-stemmers = "1.2.0"
 stop-words = "0.7.2"
@@ -75,3 +74,16 @@ tokenizers = "0.13.4"
 rand_xoshiro = "0.6.0"  
 tempfile = "3.19.1"
 actix-multipart = "0.7.2"
+
+# Bibliotecas para ONNX Runtime
+ort = { version = "1.15.2", features = ["cuda"] }  # Para carregar e executar modelos ONNX
+
+# Processamento de imagem
+image = "0.24.7"           # Para manipulação de imagens
+base64 = "0.21.5"          # Para codificação base64 das imagens anotadas
+
+# Manipulação de arrays n-dimensionais (para tensores)
+ndarray = { version = "0.15.6", features = ["serde"] }  # Você já tem esta biblioteca
+
+# Tratamento de erros
+anyhow = "1.0.79"          # Para gerenciamento de erros mais ergonômico

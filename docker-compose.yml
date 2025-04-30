@@ -5,12 +5,58 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: dados_upa_db
-      POSTGRES_USER: "your_username"
-      POSTGRES_PASSWORD: "your_password"
+      POSTGRES_DB: your_database_name
+      POSTGRES_USER: your_username
+      POSTGRES_PASSWORD: your_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backup-dados-upa.sql:/docker-entrypoint-initdb.d/backup-dados-upa.sql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U your_username -d your_database_name"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  ml_api:
+    container_name: "ml_models_api"
+    build:
+      context: ./ml_models_api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ml_models_api/app:/app/app
+    networks:
+      - app-network
+    restart: always
+
+  rust_app:
+    container_name: rust_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://your_username:your_password@db:5432/your_database_name
+      ML_API_URL: http://ml_api:8000
+    ports:
+      - '8080:8080'
+    depends_on:
+      db:
+        condition: service_healthy
+      ml_api:
+        condition: service_started
+    networks:
+      - app-network
+    restart: on-failure
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   postgres_data:

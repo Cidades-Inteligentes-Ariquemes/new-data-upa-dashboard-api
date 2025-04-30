@@ -1,5 +1,5 @@
 use actix_web::web;
-use crate::routes::{users, auth, machine_information, data_upa};
+use crate::routes::{users, auth, machine_information, data_upa, prediction};
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -8,5 +8,6 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
             .configure(users::configure_routes)
             .configure(machine_information::configure_routes)
             .configure(data_upa::configure_routes)
+            .configure(prediction::configure_routes)
     );
 }
