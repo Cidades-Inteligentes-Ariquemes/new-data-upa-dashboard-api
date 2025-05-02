@@ -6,3 +6,4 @@ pub mod data_upa_service;
 pub mod update_graph_data_service;
 pub mod visualization_data_service;
 pub mod prediction_service;
+pub mod information_service;

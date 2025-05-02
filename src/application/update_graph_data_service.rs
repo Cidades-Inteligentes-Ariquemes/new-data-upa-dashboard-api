@@ -269,17 +269,6 @@ impl UpdateGraphDataService {
         }
     }
 
-    // Método original mantido para compatibilidade
-    async fn save_processed_data(&self, data: Value, table: &str, identifier: &str) -> Result<(), AppError> {
-        self.repo.insert_nested_json(data, table, identifier)
-            .await
-            .map(|_| ())
-            .map_err(|e| {
-                error!("Erro ao salvar em {}: {}", table, e);
-                AppError::DatabaseError(e.to_string()) 
-            })
-    }
-    
     // Novo método para salvar com unidade
     async fn save_processed_data_with_unit(
         &self, 

@@ -15,7 +15,8 @@ use new_data_upa_dashboard_api::{
         prediction_service::PredictionService, 
         update_graph_data_service::UpdateGraphDataService, 
         user_service::UserService, 
-        visualization_data_service::VisualizationDataService
+        visualization_data_service::VisualizationDataService,
+        information_service::InformationService,
    }, infrastructure::{
         database::init_database,
         repositories::{
@@ -70,6 +71,10 @@ async fn main() -> std::io::Result<()> {
    let visualization_data_service = web::Data::new(VisualizationDataService::new(
        data_repository.clone(),
    ));
+
+   let information_service = web::Data::new(InformationService::new(
+        audit_repository.clone()
+    ));
 
 
    info!("Serviço de dados UPA criado");
@@ -130,6 +135,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(prediction_service.clone())
             .app_data(update_graph_data_service.clone())
             .app_data(visualization_data_service.clone())
+            .app_data(information_service.clone())
             .app_data(user_service.clone())
             .app_data(auth_service.clone())
             .app_data(auth_pronto_service)
