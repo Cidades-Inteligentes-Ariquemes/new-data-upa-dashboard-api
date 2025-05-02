@@ -15,35 +15,77 @@ impl VisualizationDataService {
         Self { repo }
     }
 
-    pub async fn number_of_appointments_per_month(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching number of appointments per month");
+    // Método auxiliar para verificar se existem dados para a unidade solicitada
+    async fn verify_unit_data_exists(&self, table: &str, identifier: &str, unidade_id: Option<i32>) -> Result<(), AppError> {
+        // Se unidade_id for None, assumimos unidade 2 (padrão)
+        let unit_id = unidade_id.unwrap_or(2);
         
-        match self.repo.fetch_nested_json("number_of_appointments_per_month", "number_of_appointments_per_month").await {
+        // Verificamos se a unidade é válida (existe no sistema)
+        let unidades = match self.repo.fetch_distinct_values("bpa", "ifrounidadeid").await {
+            Ok(units) => units,
+            Err(e) => {
+                error!("Erro ao buscar unidades disponíveis: {}", e);
+                return Err(AppError::DatabaseError(format!("Erro ao verificar unidades disponíveis: {}", e)));
+            }
+        };
+        
+        // Se a unidade solicitada não existir no sistema
+        if !unidades.contains(&unit_id) {
+            error!("Unidade {} não encontrada no sistema", unit_id);
+            return Err(AppError::NotFound(format!("Unidade {} não encontrada no sistema", unit_id)));
+        }
+        
+        // Verificamos se existem dados processados para esta unidade
+        match self.repo.check_unit_data_exists(table, identifier, unit_id).await {
+            Ok(exists) => {
+                if !exists {
+                    error!("Não há dados processados para a unidade {} em {}", unit_id, table);
+                    return Err(AppError::NotFound(format!("Não há dados processados para a unidade {} em {}", unit_id, table)));
+                }
+                Ok(())
+            },
+            Err(e) => {
+                error!("Erro ao verificar dados para unidade {}: {}", unit_id, e);
+                Err(AppError::DatabaseError(format!("Erro ao verificar dados da unidade: {}", e)))
+            }
+        }
+    }
+
+    pub async fn number_of_appointments_per_month(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching number of appointments per month for unit {:?}", unidade_id);
+        
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("number_of_appointments_per_month", "number_of_appointments_per_month", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("number_of_appointments_per_month", "number_of_appointments_per_month", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching number of appointments per month. Organized data is empty");
+                    error!("Error fetching number of appointments per month for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Number of appointments per month fetched successfully");
+                info!("Number of appointments per month fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
-                error!("Error fetching number of appointments per month: {:?}", e);
+                error!("Error fetching number of appointments per month for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn number_of_appointments_per_year(&self, year: String) -> Result<HttpResponse, AppError> {
-        info!("Fetching number of appointments per year: {}", year);
+    pub async fn number_of_appointments_per_year(&self, year: String, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching number of appointments per year: {} for unit {:?}", year, unidade_id);
         
-        match self.repo.fetch_nested_json("number_of_appointments_per_month", "number_of_appointments_per_month").await {
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("number_of_appointments_per_month", "number_of_appointments_per_month", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("number_of_appointments_per_month", "number_of_appointments_per_month", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching number of appointments per year. Organized data is empty");
+                    error!("Error fetching number of appointments per year for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
@@ -55,6 +97,11 @@ impl VisualizationDataService {
                     .filter(|(key, _)| key.starts_with(&year))
                     .collect();
                 
+                if filtered_data.is_empty() {
+                    error!("No data found for year {} in unit {:?}", year, unidade_id);
+                    return Err(AppError::NotFound(format!("No data found for year {} in unit {:?}", year, unidade_id)));
+                }
+                
                 // Ordenar por mês (formato: ano-mês)
                 let mut sorted_data_vec: Vec<(String, serde_json::Value)> = filtered_data.into_iter().collect();
                 sorted_data_vec.sort_by(|(a, _), (b, _)| {
@@ -65,23 +112,26 @@ impl VisualizationDataService {
                 
                 let sorted_data: serde_json::Map<String, serde_json::Value> = sorted_data_vec.into_iter().collect();
                 
-                info!("Number of appointments per year fetched successfully");
+                info!("Number of appointments per year fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(sorted_data).into_response())
             },
             Err(e) => {
-                error!("Error fetching number of appointments per year: {:?}", e);
+                error!("Error fetching number of appointments per year for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn years_available_for_number_of_appointments_per_month(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching years available for number of appointments per month");
+    pub async fn years_available_for_number_of_appointments_per_month(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching years available for number of appointments per month for unit {:?}", unidade_id);
         
-        match self.repo.fetch_nested_json("number_of_appointments_per_month", "number_of_appointments_per_month").await {
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("number_of_appointments_per_month", "number_of_appointments_per_month", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("number_of_appointments_per_month", "number_of_appointments_per_month", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching years available. Organized data is empty");
+                    error!("Error fetching years available for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
@@ -95,185 +145,233 @@ impl VisualizationDataService {
                     }
                 }
                 
-                let years_vec: Vec<String> = years.into_iter().collect();
+                // Verificar se encontramos anos
+                if years.is_empty() {
+                    error!("No years found for unit {:?}", unidade_id);
+                    return Err(AppError::NotFound(format!("No years found for unit {:?}", unidade_id)));
+                }
                 
-                info!("Years available fetched successfully");
+                // Ordenar os anos
+                let mut years_vec: Vec<String> = years.into_iter().collect();
+                years_vec.sort();
+                
+                info!("Years available fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(years_vec).into_response())
             },
             Err(e) => {
-                error!("Error fetching years available: {:?}", e);
+                error!("Error fetching years available for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn number_of_appointments_per_flow(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching number of appointments per flow");
+    pub async fn number_of_appointments_per_flow(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching number of appointments per flow for unit {:?}", unidade_id);
         
-        match self.repo.fetch_nested_json("number_of_appointments_per_flow", "number_of_appointments_per_flow").await {
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("number_of_appointments_per_flow", "number_of_appointments_per_flow", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("number_of_appointments_per_flow", "number_of_appointments_per_flow", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching number of appointments per flow. Organized data is empty");
+                    error!("Error fetching number of appointments per flow for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Number of appointments per flow fetched successfully");
+                info!("Number of appointments per flow fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
-                error!("Error fetching number of appointments per flow: {:?}", e);
+                error!("Error fetching number of appointments per flow for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn distribuition_of_patients_ages(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching distribuition of patients ages");
+    pub async fn distribuition_of_patients_ages(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching distribuition of patients ages for unit {:?}", unidade_id);
         
-        match self.repo.fetch_nested_json("distribuition_of_patients_ages", "distribuition_of_patients_ages").await {
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("distribuition_of_patients_ages", "distribuition_of_patients_ages", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("distribuition_of_patients_ages", "distribuition_of_patients_ages", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching distribuition of patients ages. Organized data is empty");
+                    error!("Error fetching distribuition of patients ages for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Distribuition of patients ages fetched successfully");
+                info!("Distribuition of patients ages fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
-                error!("Error fetching distribuition of patients ages: {:?}", e);
+                error!("Error fetching distribuition of patients ages for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn number_of_calls_per_day_of_the_week(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching number of calls per day of the week");
+    pub async fn number_of_calls_per_day_of_the_week(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching number of calls per day of the week for unit {:?}", unidade_id);
         
-        match self.repo.fetch_nested_json("number_of_calls_per_day_of_the_week", "number_of_calls_per_day_of_the_week").await {
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("number_of_calls_per_day_of_the_week", "number_of_calls_per_day_of_the_week", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("number_of_calls_per_day_of_the_week", "number_of_calls_per_day_of_the_week", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching number of calls per day of the week. Organized data is empty");
+                    error!("Error fetching number of calls per day of the week for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Number of calls per day of the week fetched successfully");
+                info!("Number of calls per day of the week fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
-                error!("Error fetching number of calls per day of the week: {:?}", e);
+                error!("Error fetching number of calls per day of the week for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn distribution_of_services_by_hour_group(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching distribution of services by hour group");
+    pub async fn distribution_of_services_by_hour_group(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching distribution of services by hour group for unit {:?}", unidade_id);
         
-        match self.repo.fetch_nested_json("distribution_of_services_by_hour_group", "distribution_of_services_by_hour_group").await {
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("distribution_of_services_by_hour_group", "distribution_of_services_by_hour_group", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("distribution_of_services_by_hour_group", "distribution_of_services_by_hour_group", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching distribution of services by hour group. Organized data is empty");
+                    error!("Error fetching distribution of services by hour group for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Distribution of services by hour group fetched successfully");
+                info!("Distribution of services by hour group fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
-                error!("Error fetching distribution of services by hour group: {:?}", e);
+                error!("Error fetching distribution of services by hour group for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn number_of_visits_per_nurse(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching number of visits per nurse");
+    pub async fn number_of_visits_per_nurse(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching number of visits per nurse for unit {:?}", unidade_id);
         
-        match self.repo.fetch_nested_json("number_of_visits_per_nurse", "number_of_visits_per_nurse").await {
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("number_of_visits_per_nurse", "number_of_visits_per_nurse", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("number_of_visits_per_nurse", "number_of_visits_per_nurse", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching number of visits per nurse. Organized data is empty");
+                    error!("Error fetching number of visits per nurse for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Number of visits per nurse fetched successfully");
+                info!("Number of visits per nurse fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
-                error!("Error fetching number of visits per nurse: {:?}", e);
+                error!("Error fetching number of visits per nurse for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn number_of_visits_per_doctor(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching number of visits per doctor");
+    pub async fn number_of_visits_per_doctor(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching number of visits per doctor for unit {:?}", unidade_id);
         
-        match self.repo.fetch_nested_json("number_of_visits_per_doctor", "number_of_visits_per_doctor").await {
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("number_of_visits_per_doctor", "number_of_visits_per_doctor", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("number_of_visits_per_doctor", "number_of_visits_per_doctor", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching number of visits per doctor. Organized data is empty");
+                    error!("Error fetching number of visits per doctor for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Number of visits per doctor fetched successfully");
+                info!("Number of visits per doctor fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
-                error!("Error fetching number of visits per doctor: {:?}", e);
+                error!("Error fetching number of visits per doctor for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn average_time_in_minutes_per_doctor(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching average time in minutes per doctor");
+    pub async fn average_time_in_minutes_per_doctor(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        info!("Fetching average time in minutes per doctor for unit {:?}", unidade_id);
         
-        match self.repo.fetch_nested_json("average_time_per_doctor", "average_time_per_doctor").await {
+        // Verificar se existem dados para esta unidade
+        self.verify_unit_data_exists("average_time_per_doctor", "average_time_per_doctor", unidade_id).await?;
+        
+        match self.repo.fetch_nested_json("average_time_per_doctor", "average_time_per_doctor", unidade_id).await {
             Ok(data) => {
                 if data.is_empty() {
-                    error!("Error fetching average time in minutes per doctor. Organized data is empty");
+                    error!("Error fetching average time in minutes per doctor for unit {:?}. Organized data is empty", unidade_id);
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Average time in minutes per doctor fetched successfully");
+                info!("Average time in minutes per doctor fetched successfully for unit {:?}", unidade_id);
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
-                error!("Error fetching average time in minutes per doctor: {:?}", e);
+                error!("Error fetching average time in minutes per doctor for unit {:?}: {:?}", unidade_id, e);
                 Err(AppError::InternalServerError)
             }
         }
     }
 
-    pub async fn heat_map_with_disease_indication(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching heat map with disease indication");
+    pub async fn heat_map_with_disease_indication(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        // Para mapas de calor, sempre usar unidade 2
+        let forced_unit_id = Some(2);
+        info!("Fetching heat map with disease indication for unit {:?} (forcing unit 2)", unidade_id);
         
-        match self.repo.fetch_nested_json("heat_map_with_disease_indication", "heat_map_with_disease_indication").await {
+        // Verificar se existem dados para a unidade 2
+        self.verify_unit_data_exists(
+            "heat_map_with_disease_indication", 
+            "heat_map_with_disease_indication", 
+            forced_unit_id
+        ).await?;
+        
+        match self.repo.fetch_nested_json(
+            "heat_map_with_disease_indication", 
+            "heat_map_with_disease_indication", 
+            forced_unit_id
+        ).await {
             Ok(data) => {
                 if data.is_empty() {
                     error!("Error fetching heat map with disease indication. Organized data is empty");
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
+                // Se a unidade solicitada não é 2, informar que apenas a unidade 2 é suportada
+                if unidade_id.is_some() && unidade_id.unwrap() != 2 {
+                    info!("Unidade {} solicitada para mapa de calor, mas apenas a unidade 2 (UPA Ariquemes) possui estes dados", 
+                           unidade_id.unwrap());
+                }
+                
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Heat map with disease indication fetched successfully");
+                info!("Heat map with disease indication fetched successfully (unit 2)");
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {
@@ -282,20 +380,39 @@ impl VisualizationDataService {
             }
         }
     }
-
-    pub async fn heat_map_with_the_number_of_medical_appointments_by_neighborhood(&self) -> Result<HttpResponse, AppError> {
-        info!("Fetching heat map with the number of medical appointments by neighborhood");
+    
+    pub async fn heat_map_with_the_number_of_medical_appointments_by_neighborhood(&self, unidade_id: Option<i32>) -> Result<HttpResponse, AppError> {
+        // Para mapas de calor, sempre usar unidade 2
+        let forced_unit_id = Some(2);
+        info!("Fetching heat map with appointments by neighborhood for unit {:?} (forcing unit 2)", unidade_id);
         
-        match self.repo.fetch_nested_json("heat_map_with_the_number_of_medical_appointments_by_neighborhood", "heat_map_with_the_number_of_medical_appointments_by_neighborhood").await {
+        // Verificar se existem dados para a unidade 2
+        self.verify_unit_data_exists(
+            "heat_map_with_the_number_of_medical_appointments_by_neighborhood", 
+            "heat_map_with_the_number_of_medical_appointments_by_neighborhood", 
+            forced_unit_id
+        ).await?;
+        
+        match self.repo.fetch_nested_json(
+            "heat_map_with_the_number_of_medical_appointments_by_neighborhood", 
+            "heat_map_with_the_number_of_medical_appointments_by_neighborhood", 
+            forced_unit_id
+        ).await {
             Ok(data) => {
                 if data.is_empty() {
                     error!("Error fetching heat map with appointments by neighborhood. Organized data is empty");
                     return Err(AppError::BadRequest("No data found".to_string()));
                 }
                 
+                // Se a unidade solicitada não é 2, informar que apenas a unidade 2 é suportada
+                if unidade_id.is_some() && unidade_id.unwrap() != 2 {
+                    info!("Unidade {} solicitada para mapa de calor, mas apenas a unidade 2 (UPA Ariquemes) possui estes dados", 
+                           unidade_id.unwrap());
+                }
+                
                 let corrected_data = self.correct_keys(data);
                 
-                info!("Heat map with appointments by neighborhood fetched successfully");
+                info!("Heat map with appointments by neighborhood fetched successfully (unit 2)");
                 Ok(ApiResponse::success(corrected_data).into_response())
             },
             Err(e) => {

@@ -422,16 +422,36 @@ impl DataRepository for PgDataRepository {
         Ok(result)
     }
 
-    async fn fetch_nested_json(&self, table: &str, identifier: &str) -> Result<serde_json::Map<String, serde_json::Value>, Box<dyn Error + Send + Sync>> {
+    async fn fetch_nested_json(&self, table: &str, identifier: &str, unidade_id: Option<i32>) -> Result<serde_json::Map<String, serde_json::Value>, Box<dyn Error + Send + Sync>> {
         // Consulta SQL para buscar dados JSON
-        let query = format!("SELECT data FROM {} WHERE identifier = $1", table);
+        let query = if let Some(_unit_id) = unidade_id {
+            format!(
+                "SELECT data FROM {} WHERE identifier = $1 AND ifrounidadeid = $2", 
+                table
+            )
+        } else {
+            // Retrocompatibilidade - busca unidade padrão (UPA Ariquemes)
+            format!(
+                "SELECT data FROM {} WHERE identifier = $1 AND ifrounidadeid = 2", 
+                table
+            )
+        };
         
         // Executa a consulta
-        let row = sqlx::query(&query)
-            .bind(identifier)
-            .fetch_optional(&self.pool)
-            .await?;
+        let row = if let Some(unit_id) = unidade_id {
+            sqlx::query(&query)
+                .bind(identifier)
+                .bind(unit_id)
+                .fetch_optional(&self.pool)
+                .await?
+        } else {
+            sqlx::query(&query)
+                .bind(identifier)
+                .fetch_optional(&self.pool)
+                .await?
+        };
         
+        // Processa resultado
         if let Some(row) = row {
             // Extrair o valor JSON da coluna 'data'
             let json_data: serde_json::Value = row.get("data");
@@ -447,5 +467,274 @@ impl DataRepository for PgDataRepository {
             // Se não encontrou nenhum registro, retornar um mapa vazio
             Ok(serde_json::Map::new())
         }
+    }
+
+
+    async fn fetch_distinct_values(&self, table: &str, column: &str) 
+        -> Result<Vec<i32>, Box<dyn Error + Send + Sync>> {
+        // Consulta SQL para buscar valores distintos
+        let query = format!("SELECT DISTINCT {} FROM {}", column, table);
+        
+        // Executa a consulta
+        let rows = sqlx::query(&query)
+            .fetch_all(&self.pool)
+            .await?;
+        
+        if rows.is_empty() {
+            println!("Nenhum valor distinto encontrado para {} em {}", column, table);
+            return Ok(Vec::new());
+        }
+        
+        // Extrair os valores
+        let mut values = Vec::new();
+        for row in rows {
+            match row.try_get::<i32, _>(0) {
+                Ok(value) => values.push(value),
+                Err(_) => {
+                    println!("Erro ao extrair valor de {}", column);
+                    continue;
+                }
+            }
+        }
+        
+        println!("Valores distintos para {} em {}: {:?}", column, table, values);
+        Ok(values)
+    }
+
+    async fn fetch_columns_by_name_with_filter(
+        &self, 
+        table: &str, 
+        columns: &[String], 
+        filter_column: &str, 
+        filter_value: i32
+    ) -> Result<HashMap<String, Vec<Value>>, Box<dyn Error + Send + Sync>> {
+        // Constrói a query com filtro
+        let query = format!(
+            "SELECT {} FROM {} WHERE {} = $1", 
+            columns.join(", "), 
+            table, 
+            filter_column
+        );
+    
+        // Executa a query
+        let rows = sqlx::query(&query)
+            .bind(filter_value)
+            .fetch_all(&self.pool)
+            .await?;
+    
+        if rows.is_empty() {
+            println!(
+                "Nenhum dado encontrado em {} para colunas {} com filtro {}={}", 
+                table, columns.join(", "), filter_column, filter_value
+            );
+            return Ok(HashMap::new());
+        }
+    
+        // Inicializar o resultado
+        let mut result: HashMap<String, Vec<Value>> = HashMap::new();
+        for col_name in columns {
+            result.insert(col_name.to_string(), Vec::new());
+        }
+    
+        // Para cada linha de resultado
+        for row in &rows {
+            // Para cada coluna na linha
+            for (i, column_name) in columns.iter().enumerate() {
+                // Tenta obter o valor baseado no tipo da coluna
+                let column = row.columns().get(i).unwrap();
+                let value: Value = match column.type_info().to_string().as_str() {
+                    "INT4" | "INT8" => {
+                        if let Ok(v) = row.try_get::<i64, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "FLOAT4" | "FLOAT8" => {
+                        if let Ok(v) = row.try_get::<f64, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "VARCHAR" | "TEXT" => {
+                        if let Ok(v) = row.try_get::<String, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "BOOL" => {
+                        if let Ok(v) = row.try_get::<bool, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "TIMESTAMP" | "TIMESTAMPTZ" => {
+                        if let Ok(v) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
+                            json!(v.to_string())
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    "DATE" => {
+                        if let Ok(v) = row.try_get::<chrono::NaiveDate, _>(i) {
+                            json!(v.to_string())
+                        } else {
+                            Value::Null
+                        }
+                    },
+                    _ => {
+                        // Para outros tipos, tenta obter como string
+                        if let Ok(v) = row.try_get::<String, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    }
+                };
+    
+                // Adiciona o valor ao vetor da coluna
+                if let Some(column_values) = result.get_mut(column_name) {
+                    column_values.push(value);
+                }
+            }
+        }
+    
+        println!(
+            "Buscou colunas {:?} da tabela {} com filtro {}={}", 
+            columns, table, filter_column, filter_value
+        );
+        Ok(result)
+    }
+
+    
+    async fn insert_nested_json_with_unit(
+        &self, 
+        data: Value, 
+        table: &str, 
+        identifier: &str, 
+        unidade_id: i32
+    ) -> Result<HashMap<String, Value>, Box<dyn Error + Send + Sync>> {
+        // Habilita a extensão uuid-ossp se necessário
+        sqlx::query("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
+            .execute(&self.pool)
+            .await?;
+    
+        // Verifica se a tabela existe e tem as colunas necessárias
+        let check_table_query = format!(
+            "SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = '{}'
+            );",
+            table
+        );
+        
+        let table_exists: bool = sqlx::query_scalar(&check_table_query)
+            .fetch_one(&self.pool)
+            .await?;
+            
+        if !table_exists {
+            // Cria a tabela com suporte a unidade_id
+            let create_table_query = format!(
+                "CREATE TABLE {} (
+                    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+                    identifier TEXT NOT NULL,
+                    ifrounidadeid INTEGER NOT NULL,
+                    data JSONB,
+                    UNIQUE(identifier, ifrounidadeid)
+                );",
+                table
+            );
+            
+            sqlx::query(&create_table_query)
+                .execute(&self.pool)
+                .await?;
+        } else {
+            // Verifica se a coluna ifrounidadeid existe
+            let check_column_query = format!(
+                "SELECT EXISTS (
+                    SELECT FROM information_schema.columns 
+                    WHERE table_name = '{}' AND column_name = 'ifrounidadeid'
+                );",
+                table
+            );
+            
+            let column_exists: bool = sqlx::query_scalar(&check_column_query)
+                .fetch_one(&self.pool)
+                .await?;
+                
+            if !column_exists {
+                // Adiciona coluna ifrounidadeid e atualiza estrutura
+                let alter_table_query = format!(
+                    "ALTER TABLE {} 
+                     ADD COLUMN ifrounidadeid INTEGER NOT NULL DEFAULT 2,
+                     DROP CONSTRAINT IF EXISTS {}_identifier_key,
+                     ADD CONSTRAINT {}_identifier_ifrounidadeid_unique UNIQUE (identifier, ifrounidadeid);",
+                    table, table, table
+                );
+                
+                sqlx::query(&alter_table_query)
+                    .execute(&self.pool)
+                    .await?;
+            }
+        }
+    
+        // Converter chaves para strings
+        let processed_data = convert_keys_to_str(data);
+    
+        // Serializar o dicionário em JSON
+        let data_json = processed_data.to_string();
+    
+        // Inserir ou atualizar os dados
+        let insert_query = format!(
+            "INSERT INTO {} (identifier, ifrounidadeid, data)
+            VALUES ($1, $2, $3::jsonb)
+            ON CONFLICT (identifier, ifrounidadeid)
+            DO UPDATE SET data = EXCLUDED.data
+            RETURNING id;",
+            table
+        );
+    
+        let record_id: Uuid = sqlx::query_scalar(&insert_query)
+            .bind(identifier)
+            .bind(unidade_id)
+            .bind(data_json)
+            .fetch_one(&self.pool)
+            .await?;
+    
+        println!(
+            "Dados inseridos/atualizados com sucesso na tabela {} com id {} para unidade {}", 
+            table, record_id, unidade_id
+        );
+    
+        let mut result = HashMap::new();
+        result.insert("id".to_string(), json!(record_id.to_string()));
+        result.insert("ifrounidadeid".to_string(), json!(unidade_id));
+        result.insert("added".to_string(), json!(true));
+    
+        Ok(result)
+    }
+
+
+    async fn check_unit_data_exists(&self, table: &str, identifier: &str, unidade_id: i32) -> Result<bool, Box<dyn Error + Send + Sync>> {
+        // Consulta para verificar se existem dados para esta unidade e identificador
+        let query = format!(
+            "SELECT EXISTS (
+                SELECT 1 FROM {} 
+                WHERE identifier = $1 AND ifrounidadeid = $2
+            )",
+            table
+        );
+
+        // Executar a consulta
+        let exists: bool = sqlx::query_scalar(&query)
+            .bind(identifier)
+            .bind(unidade_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(exists)
     }
 }

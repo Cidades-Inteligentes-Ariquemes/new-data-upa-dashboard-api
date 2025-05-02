@@ -8,7 +8,6 @@ ENV SQLX_OFFLINE=true
 COPY . .
 RUN cargo build --release
 
-# Estágio de produção
 FROM debian:stable-slim
 WORKDIR /usr/local/bin
 
@@ -19,13 +18,13 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar o binário compilado do estágio de build
+# Copia o binário compilado do estágio de build
 COPY --from=builder /app/target/release/new-data-upa-dashboard-api .
 
-# Copiar o arquivo .env para o container
+# Copia o arquivo .env para o container
 COPY --from=builder /app/.env .
 
-# Definir as permissões de execução
+# Defini as permissões de execução
 RUN chmod +x ./new-data-upa-dashboard-api
 
 # Comando para iniciar a aplicação
