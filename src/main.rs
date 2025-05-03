@@ -30,6 +30,7 @@ use new_data_upa_dashboard_api::{
    }, 
    routes::config::routes::configure_routes, utils::config_env::Config
 };
+extern crate partitions;
 
 
 #[actix_web::main]

@@ -8,6 +8,7 @@ use crate::domain::repositories::auth_pronto::AuthProntoRepository;
 use crate::utils::config_env::Config as AppConfig;
 use log::{error, info};
 
+#[derive(Clone)]
 pub struct SqlServerAuthProntoRepository {
     config: AppConfig,
 }

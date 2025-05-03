@@ -1,4 +1,3 @@
-// src/middleware/audit.rs
 use actix_web::{
     dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
     Error, HttpMessage,
@@ -18,6 +17,7 @@ use crate::utils::validators::is_public_route;
 pub struct AuditMiddleware<R: AuditRepository> {
     repository: R,
 }
+
 
 impl<R: AuditRepository> AuditMiddleware<R> {
     pub fn new(repository: R) -> Self {
@@ -76,28 +76,32 @@ where
             .unwrap_or("unknown")
             .to_string();
 
-        // Capturar informações do usuário do token, se disponível
+        // Verifica se é uma rota pública
+        if is_public_route(&path) {
+            // Se for uma rota pública, apenas processa a requisição sem auditoria
+            return Box::pin(self.service.call(req));
+        }
+
+        // Captura informações do usuário do token, se disponível
         let mut user_email = "unknown".to_string();
         let mut user_profile = "unknown".to_string();
 
-        // Tentar obter as claims do usuário, se estiver autenticado
-        if !is_public_route(&path) {
-            if let Some(claims) = req.extensions().get::<Claims>() {
-                user_email = if !claims.email.is_empty() { 
-                    claims.email.clone() 
-                } else { 
-                    claims.full_name.clone() 
-                };
-                user_profile = claims.profile.clone();
-            }
+        // Tenta obter as claims do usuário, se estiver autenticado
+        if let Some(claims) = req.extensions().get::<Claims>() {
+            user_email = if !claims.email.is_empty() { 
+                claims.email.clone() 
+            } else { 
+                claims.full_name.clone() 
+            };
+            user_profile = claims.profile.clone();
         }
 
-        // Formatar data e hora
+        // Formata data e hora
         let now = Utc::now();
         let date_of_request = now.format("%Y-%m-%d").to_string();
         let hour_of_request = now.format("%H:%M:%S").to_string();
 
-        // Criar o DTO de auditoria
+        // Cria o DTO de auditoria
         let audit_data = CreateAuditDto {
             id: Uuid::new_v4(),
             user_email,
@@ -115,16 +119,16 @@ where
         let repository_clone = self.repository.clone();
 
         Box::pin(async move {
-            // Registrar a auditoria em paralelo com o processamento da requisição
+            // Registra a auditoria em paralelo com o processamento da requisição
             let audit_future = repository_clone.add_information_audit(audit_data_clone);
             
-            // Continuar com o fluxo normal da requisição
+            // Continua com o fluxo normal da requisição
             let res = fut.await?;
             
-            // Aguardar a conclusão do registro de auditoria, mas não bloquear a resposta
+            // Aguarda a conclusão do registro de auditoria, mas não bloquear a resposta
             if let Err(e) = audit_future.await {
                 error!("Error adding audit information: {:?}", e);
-                // Não falhar a requisição se o registro de auditoria falhar
+                // Não falha a requisição se o registro de auditoria falhar
             }
             
             Ok(res)
