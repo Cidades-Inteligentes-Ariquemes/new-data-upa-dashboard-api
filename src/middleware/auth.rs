@@ -10,10 +10,10 @@ use crate::domain::models::auth::Claims;
 use crate::utils::config_env::Config;
 use crate::utils::validators::{is_public_route, routes_for_users_common};
 
-// 1. Estrutura principal do Middleware
+// Estrutura principal do Middleware
 pub struct AuthMiddleware;
 
-// 2. Implementação do Transform trait para AuthMiddleware
+// Implementação do Transform trait para AuthMiddleware
 impl<S, B> Transform<S, ServiceRequest> for AuthMiddleware
 where
 // Restrições de tipo necessárias para o Service
@@ -33,12 +33,12 @@ where
     }
 }
 
-// 3. Serviço do Middleware que faz o trabalho real
+// Serviço do Middleware que faz o trabalho real
 pub struct AuthMiddlewareService<S> {
     service: S,
 }
 
-// 4. Implementação do Service trait - Onde a lógica principal acontece
+// Implementação do Service trait - Onde a lógica principal acontece
 impl<S, B> Service<ServiceRequest> for AuthMiddlewareService<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
@@ -72,7 +72,7 @@ where
             }
         };
 
-        // 1. Primeiro verifica se é rota pública
+        // Primeiro verifica se é rota pública
         if is_public_route(&req.path()) {
             let fut = self.service.call(req);
             return Box::pin(async move {
@@ -81,7 +81,7 @@ where
             });
         }
 
-        // 2. Verifica existência do header de autorização
+        // Verifica existência do header de autorização
         let auth_header = req.headers().get("Authorization");
 
         let auth_header = match auth_header {
@@ -93,14 +93,14 @@ where
             }
         };
 
-        // 3. Verifica formato do token
+        // Verifica formato do token
         if !auth_header.starts_with("Bearer ") {
             return Box::pin(async move {
                 Err(ErrorUnauthorized("Invalid authorization header"))
             });
         }
 
-        // 4. Decodifica e valida o token
+        // Decodifica e valida o token
         let token = &auth_header[7..];
         let token_data = match decode::<Claims>(
             token,

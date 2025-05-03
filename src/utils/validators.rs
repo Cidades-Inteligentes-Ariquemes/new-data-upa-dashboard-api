@@ -91,7 +91,20 @@ pub fn routes_for_users_common(path: &str) -> bool {
     let routes_common = [
         "/api/users/feedback-respiratory-diseases",
         "/api/users/feedback-tuberculosis",
-        "/api/users/update-password-by-user-common"
+        "/api/users/update-password-by-user-common",
+        "/api/prediction/predict",
+        "/api/prediction/predict_tb",
+        "/api/prediction/detect",
+        "/api/data/number-of-appointments-per-month",
+        "/api/data/number-of-appointments-per-flow",
+        "/api/data/distribuition-of-patients-ages",
+        "/api/data/number-of-calls-per-day-of-the-week",
+        "/api/data/distribution-of-services-by-hour-group",
+        "/api/data/number-of-visits-per-nurse",
+        "/api/data/number-of-visits-per-doctor",
+        "/api/data/average-time-in-minutes-per-doctor",
+        "/api/data/heat-map-with-disease-indications",
+        "/api/data/heat-map-with-the-number-of-medical-appointments-by-neighborhood"
     ];
 
     routes_common.iter().any(|route| path.starts_with(route))
