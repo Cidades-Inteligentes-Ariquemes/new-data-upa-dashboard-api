@@ -4,4 +4,9 @@
 .idea
 backup-dados-upa.sql
 docker-compose.yml
-ml_models_api/app/models
+ml_models_api/app/models/best_breast_cancer.pt
+ml_models_api/app/models/best.pt
+ml_models_api/app/models/faster_rcnn_model.pth
+ml_models_api/app/models/best_model-18-01-2025.pth
+__pycache__
+*.pyc
