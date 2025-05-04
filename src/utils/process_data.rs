@@ -21,7 +21,6 @@ pub fn columns_names() -> Vec<&'static str> {
         "IfroMunicipioId",
         "IfroAlocacaoId",
         "IfroMunicipioIBGE",
-        "IfroUnidadeNome",
         "IfroUnidadeCNES",
         "IfroUnidadeCNPJ",
         "IfroProfissionalCBOCd",

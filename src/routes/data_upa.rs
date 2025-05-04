@@ -60,6 +60,10 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                 web::resource("/heat-map-with-the-number-of-medical-appointments-by-neighborhood")
                     .route(web::get().to(visualization_data_handler::heat_map_with_the_number_of_medical_appointments_by_neighborhood))
             )
+            .service(
+                web::resource("/available-health-units")
+                    .route(web::get().to(data_upa_handler::available_health_units))
+            )
 
     );
 }

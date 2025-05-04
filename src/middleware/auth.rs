@@ -115,14 +115,14 @@ where
             }
         };
 
-        // 5. Verifica permissões
+        // Verifica permissões
         if !routes_for_users_common(&req.path()) && token_data.claims.profile != "Administrador" {
             return Box::pin(async move {
                 Err(ErrorUnauthorized("This access is for administrators only"))
             });
         }
 
-        // 6. Se chegou aqui, token é válido e permissões estão ok
+        // Se chegou aqui, token é válido e permissões estão ok
         req.extensions_mut().insert(token_data.claims);
 
         let fut = self.service.call(req);

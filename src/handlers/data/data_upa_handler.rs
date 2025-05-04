@@ -47,3 +47,9 @@ pub async fn add_data(
     // Processa e salva os dados
     service.add_data(file_data.freeze()).await
 }
+
+pub async fn available_health_units(
+    service: web::Data<DataUpaService>,
+) -> Result<HttpResponse, AppError> {
+    service.get_available_health_units().await
+}

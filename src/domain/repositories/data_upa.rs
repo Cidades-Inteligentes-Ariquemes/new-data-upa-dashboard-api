@@ -17,4 +17,5 @@ pub trait DataRepository: Send + Sync + 'static {
     async fn fetch_columns_by_name_with_filter(&self, table: &str, columns: &[String], filter_column: &str, filter_value: i32) -> Result<HashMap<String, Vec<Value>>, Box<dyn Error + Send + Sync>>;
     async fn insert_nested_json_with_unit(&self, data: Value, table: &str, identifier: &str, unidade_id: i32) -> Result<HashMap<String, Value>, Box<dyn Error + Send + Sync>>;
     async fn check_unit_data_exists(&self, table: &str, identifier: &str, unidade_id: i32) -> Result<bool, Box<dyn Error + Send + Sync>>;
+    async fn fetch_distinct_health_units(&self, table: &str, columns: &[String]) -> Result<HashMap<String, Vec<Value>>, Box<dyn Error + Send + Sync>>;
 }

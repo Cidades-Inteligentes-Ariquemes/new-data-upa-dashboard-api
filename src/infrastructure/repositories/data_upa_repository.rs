@@ -737,4 +737,94 @@ impl DataRepository for PgDataRepository {
 
         Ok(exists)
     }
+
+    async fn fetch_distinct_health_units(
+        &self, 
+        table: &str, 
+        columns: &[String]
+    ) -> Result<HashMap<String, Vec<Value>>, Box<dyn Error + Send + Sync>> {
+        // Query para buscar valores únicos de unidades de saúde
+        let query = format!(
+            "SELECT DISTINCT {} FROM {} WHERE {} IS NOT NULL AND {} IS NOT NULL ORDER BY {}",
+            columns.join(", "),
+            table,
+            columns[0], // ifrounidadeid
+            columns[1], // ifrounidadenome
+            columns[0]  // ordem por id
+        );
+    
+        println!("Executing query: {}", query);
+    
+        // Executa a query
+        let rows = sqlx::query(&query)
+            .fetch_all(&self.pool)
+            .await?;
+    
+        println!("Number of rows returned: {}", rows.len());
+    
+        if rows.is_empty() {
+            println!("No health units found in table {}", table);
+            return Ok(HashMap::new());
+        }
+    
+        // Inicializa o resultado
+        let mut result: HashMap<String, Vec<Value>> = HashMap::new();
+        for col_name in columns {
+            result.insert(col_name.to_string(), Vec::new());
+        }
+    
+        // Para cada linha de resultado
+        for (row_idx, row) in rows.iter().enumerate() {
+            println!("Processing row {}", row_idx);
+            
+            // Para cada coluna
+            for (i, column_name) in columns.iter().enumerate() {
+                let column = row.columns().get(i).unwrap();
+                let type_name = column.type_info().to_string();
+                println!("Column {} ({}): type={}", i, column_name, type_name);
+                
+                let value: Value = match type_name.as_str() {
+                    "INT4" | "INT8" => {
+                        if let Ok(v) = row.try_get::<i64, _>(i) {
+                            println!("Integer value: {}", v);
+                            json!(v)
+                        } else if let Ok(v) = row.try_get::<i32, _>(i) {
+                            println!("Integer 32 value: {}", v);
+                            json!(v as i64)
+                        } else {
+                            println!("Failed to get integer value");
+                            Value::Null
+                        }
+                    },
+                    "VARCHAR" | "TEXT" => {
+                        if let Ok(v) = row.try_get::<String, _>(i) {
+                            println!("String value: {}", v);
+                            json!(v)
+                        } else {
+                            println!("Failed to get string value");
+                            Value::Null
+                        }
+                    },
+                    _ => {
+                        println!("Unknown type: {}", type_name);
+                        // Para outros tipos, tenta obter como string
+                        if let Ok(v) = row.try_get::<String, _>(i) {
+                            json!(v)
+                        } else {
+                            Value::Null
+                        }
+                    }
+                };
+    
+                // Adiciona o valor ao vetor da coluna
+                if let Some(column_values) = result.get_mut(column_name) {
+                    column_values.push(value);
+                }
+            }
+        }
+    
+        println!("Result: {:?}", result);
+        println!("Fetched distinct health units from table {}", table);
+        Ok(result)
+    }
 }

@@ -1,9 +1,14 @@
+use std::collections::HashMap;
+
 use actix_web::{web, HttpResponse};
 use log::{error, info};
-use serde_json::json;
+use serde_json::{json, Value};
 use polars::prelude::*;
 
-use crate::domain::repositories::data_upa::DataRepository;
+use crate::domain::{
+    repositories::data_upa::DataRepository,
+    models::data_upa::HealthUnit,
+};
 use crate::infrastructure::repositories::data_upa_repository::PgDataRepository;
 use crate::utils::response::ApiResponse;
 use crate::AppError;
@@ -217,6 +222,82 @@ impl DataUpaService {
             Err(e) => {
                 error!("Erro ao inserir dados na tabela {}: {:?}", table_name, e);
                 Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn get_available_health_units(&self) -> Result<HttpResponse, AppError> {
+        let table_name = "bpa";
+        let columns = vec![
+            "ifrounidadeid".to_string(),
+            "ifrounidadenome".to_string()
+        ];
+
+        match self.repo.fetch_distinct_health_units(table_name, &columns).await {
+            Ok(data) => {
+                let mut units = Vec::new();
+                
+                info!("Raw data from database: {:?}", data);
+                
+                if let Some(ids) = data.get("ifrounidadeid") {
+                    if let Some(names) = data.get("ifrounidadenome") {
+                        info!("IDs found: {:?}", ids);
+                        info!("Names found: {:?}", names);
+                        
+                        for (id, name) in ids.iter().zip(names.iter()) {
+                            info!("Processing: id={:?}, name={:?}", id, name);
+                            
+                            // Tenta converter id para i64
+                            let id_value = match id {
+                                Value::Number(n) => {
+                                    if let Some(i) = n.as_i64() {
+                                        Some(i)
+                                    } else if let Some(f) = n.as_f64() {
+                                        Some(f as i64)  // Converter float para int
+                                    } else {
+                                        None
+                                    }
+                                },
+                                _ => None
+                            };
+                            
+                            // Tenta converter name para string
+                            let name_value = match name {
+                                Value::String(s) => Some(s.clone()),
+                                _ => None
+                            };
+                            
+                            if let (Some(id), Some(name)) = (id_value, name_value) {
+                                info!("Adding unit: id={}, name={}", id, name);
+                                units.push(HealthUnit {
+                                    id,
+                                    name,
+                                });
+                            } else {
+                                info!("Failed to convert: id={:?}, name={:?}", id, name);
+                            }
+                        }
+                    } else {
+                        info!("No names found in data");
+                    }
+                } else {
+                    info!("No ids found in data");
+                }
+                
+                // Remove duplicatas baseado no id
+                let mut unique_units: HashMap<i64, HealthUnit> = HashMap::new();
+                for unit in units {
+                    unique_units.insert(unit.id, unit);
+                }
+                
+                let result: Vec<HealthUnit> = unique_units.into_values().collect();
+                info!("Found {} unique health units", result.len());
+                
+                Ok(ApiResponse::success(result).into_response())
+            },
+            Err(e) => {
+                error!("Error fetching available health units: {:?}", e);
+                Err(AppError::DatabaseError(e.to_string()))
             }
         }
     }
