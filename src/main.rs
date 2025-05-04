@@ -85,6 +85,7 @@ async fn main() -> std::io::Result<()> {
        user_repository.clone(),
        password_encryptor.clone(),
        web::Data::new(config.clone()),
+       data_repository.clone(),
    ));
 
 

@@ -11,6 +11,7 @@ pub struct User {
     pub password: String,
     pub profile: String,
     pub allowed_applications: Vec<String>,
+    pub allowed_health_units: Vec<i64>,
     pub enabled: bool,
 }
 
@@ -20,7 +21,8 @@ pub struct CreateUserDto {
     pub email: String,
     pub password: String,
     pub profile: String,
-    pub allowed_applications: Vec<String>
+    pub allowed_applications: Vec<String>,
+    pub allowed_health_units: Vec<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +31,7 @@ pub struct UpdateUserDto {
     pub email: String,
     pub profile: String,
     pub allowed_applications: Vec<String>,
+    pub allowed_health_units: Vec<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,6 +58,7 @@ pub struct UserResponse {
     pub email: String,
     pub profile: String,
     pub allowed_applications: Vec<String>,
+    pub allowed_health_units: Vec<i64>,
     pub enabled: bool,
 }
 
@@ -173,6 +177,7 @@ impl From<User> for UserResponse {
             email: user.email,
             profile: user.profile,
             allowed_applications: user.allowed_applications,
+            allowed_health_units: user.allowed_health_units,
             enabled: user.enabled,
         }
     }
@@ -182,4 +187,9 @@ impl From<User> for UserResponse {
 pub struct LoginDto {
     pub email: String,
     pub password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AddHealthUnitDto {
+    pub health_units: Vec<i64>,
 }

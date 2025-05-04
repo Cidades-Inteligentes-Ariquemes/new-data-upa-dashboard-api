@@ -3,17 +3,7 @@ use uuid::Uuid;
 use crate::{
     application::user_service::UserService,
     domain::models::user::{
-        AddApplicationDto, 
-        ApplicationPath, 
-        CreateUserDto, 
-        UpdatePasswordByAdminDto, 
-        UpdatePasswordByUserCommonDto, 
-        UpdateUserDto,
-        CreateFeedbackRespiratoryDiseasesDto,
-        CreateFeedbackTuberculosisDto,
-        IdVerificationDto,
-        ConfirmVerificationCodeDto,
-        UpdatePasswordForgettingUserDto,
+        AddApplicationDto, AddHealthUnitDto, ApplicationPath, ConfirmVerificationCodeDto, CreateFeedbackRespiratoryDiseasesDto, CreateFeedbackTuberculosisDto, CreateUserDto, IdVerificationDto, UpdatePasswordByAdminDto, UpdatePasswordByUserCommonDto, UpdatePasswordForgettingUserDto, UpdateUserDto
     },
     AppError,
 };
@@ -140,4 +130,20 @@ pub async fn update_password_for_forgetting_user(
     data: web::Json<UpdatePasswordForgettingUserDto>,
 ) -> Result<HttpResponse, AppError> {
     service.update_password_for_forgetting_user(user_id.into_inner(), data.into_inner()).await
+}
+
+pub async fn add_health_unit(
+    service: web::Data<UserService>,
+    id: web::Path<Uuid>,
+    health_units: web::Json<AddHealthUnitDto>,
+) -> Result<HttpResponse, AppError> {
+    service.add_health_unit(id.into_inner(), health_units.into_inner()).await
+}
+
+pub async fn delete_health_unit(
+    service: web::Data<UserService>,
+    path: web::Path<(Uuid, i64)>,
+) -> Result<HttpResponse, AppError> {
+    let (id, health_unit_id) = path.into_inner();
+    service.delete_health_unit(id, health_unit_id).await
 }

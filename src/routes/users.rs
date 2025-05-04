@@ -63,6 +63,14 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                 web::resource("/{id}/update-enabled")
                     .route(web::patch().to(user_handler::update_enabled))
             )
+            .service(
+                web::resource("/{id}/health-units")
+                    .route(web::post().to(user_handler::add_health_unit))
+            )
+            .service(
+                web::resource("/{id}/health-unit/{health_unit_id}")
+                    .route(web::delete().to(user_handler::delete_health_unit))
+            )
 
     );
 }

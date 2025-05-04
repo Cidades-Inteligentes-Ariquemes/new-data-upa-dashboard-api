@@ -1,8 +1,5 @@
 use crate::domain::models::user::{
-    AddApplicationDto, AddVerificationCodeDto, AddVerificationCodeResponse,
-    CreateFeedbackRespiratoryDiseasesDto, CreateFeedbackTuberculosisDto, CreateUserDto,
-    FeedbackRespiratoryDiseasesResponse, FeedbackTuberculosisResponse, UpdateEnabledUserDto,
-    UpdateUserDto, UpdateVerificationCodeDto, User,
+    AddApplicationDto, AddHealthUnitDto, AddVerificationCodeDto, AddVerificationCodeResponse, CreateFeedbackRespiratoryDiseasesDto, CreateFeedbackTuberculosisDto, CreateUserDto, FeedbackRespiratoryDiseasesResponse, FeedbackTuberculosisResponse, UpdateEnabledUserDto, UpdateUserDto, UpdateVerificationCodeDto, User
 };
 use crate::domain::repositories::user::UserRepository;
 use async_trait::async_trait;
@@ -32,6 +29,7 @@ impl UserRepository for PgUserRepository {
                 password,
                 profile,
                 allowed_applications as "allowed_applications!: Vec<String>",
+                allowed_health_units as "allowed_health_units!: Vec<i64>",
                 enabled
             FROM users_api
             WHERE enabled = true
@@ -50,6 +48,7 @@ impl UserRepository for PgUserRepository {
                 password: row.password,
                 profile: row.profile,
                 allowed_applications: row.allowed_applications,
+                allowed_health_units: row.allowed_health_units,
                 enabled: row.enabled,
             })
             .collect())
@@ -121,6 +120,7 @@ impl UserRepository for PgUserRepository {
                 password,
                 profile,
                 allowed_applications as "allowed_applications!: Vec<String>",
+                allowed_health_units as "allowed_health_units!: Vec<i64>",
                 enabled
             FROM users_api
             WHERE id = $1
@@ -137,6 +137,7 @@ impl UserRepository for PgUserRepository {
             password: row.password,
             profile: row.profile,
             allowed_applications: row.allowed_applications,
+            allowed_health_units: row.allowed_health_units,
             enabled: row.enabled,
         }))
     }
@@ -151,6 +152,7 @@ impl UserRepository for PgUserRepository {
                 password,
                 profile,
                 allowed_applications as "allowed_applications!: Vec<String>",
+                allowed_health_units as "allowed_health_units!: Vec<i64>",
                 enabled
             FROM users_api
             WHERE email = $1
@@ -167,6 +169,7 @@ impl UserRepository for PgUserRepository {
             password: row.password,
             profile: row.profile,
             allowed_applications: row.allowed_applications,
+            allowed_health_units: row.allowed_health_units,
             enabled: row.enabled,
         }))
     }
@@ -183,9 +186,10 @@ impl UserRepository for PgUserRepository {
                 password,
                 profile,
                 allowed_applications,
+                allowed_health_units,
                 enabled
             )
-            VALUES ($1, $2, $3, $4, $5, $6, true)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, true)
             RETURNING
                 id,
                 full_name,
@@ -193,6 +197,7 @@ impl UserRepository for PgUserRepository {
                 password,
                 profile,
                 allowed_applications as "allowed_applications!: Vec<String>",
+                allowed_health_units as "allowed_health_units!: Vec<i64>",
                 enabled
             "#,
             id,
@@ -201,6 +206,7 @@ impl UserRepository for PgUserRepository {
             user.password,
             user.profile,
             &user.allowed_applications as &[String],
+            &user.allowed_health_units as &[i64],
         )
         .fetch_one(&self.pool)
         .await?;
@@ -212,6 +218,7 @@ impl UserRepository for PgUserRepository {
             password: user.password,
             profile: user.profile,
             allowed_applications: user.allowed_applications,
+            allowed_health_units: user.allowed_health_units,
             enabled: user.enabled,
         })
     }
@@ -227,8 +234,9 @@ impl UserRepository for PgUserRepository {
                     full_name = $1,
                     email = $2,
                     profile = $3,
-                    allowed_applications = $4
-                WHERE id = $5
+                    allowed_applications = $4,
+                    allowed_health_units = $5
+                WHERE id = $6
                 RETURNING
                     id,
                     full_name,
@@ -236,12 +244,14 @@ impl UserRepository for PgUserRepository {
                     password,
                     profile,
                     allowed_applications as "allowed_applications!: Vec<String>",
+                    allowed_health_units as "allowed_health_units!: Vec<i64>",
                     enabled
                 "#,
                 user.full_name,
                 user.email,
                 user.profile,
                 &user.allowed_applications as &[String],
+                &user.allowed_health_units as &[i64],
                 id
             )
             .fetch_one(&self.pool)
@@ -254,6 +264,7 @@ impl UserRepository for PgUserRepository {
                 password: updated_user.password,
                 profile: updated_user.profile,
                 allowed_applications: updated_user.allowed_applications,
+                allowed_health_units: updated_user.allowed_health_units,
                 enabled: updated_user.enabled,
             }))
         } else {
@@ -351,6 +362,7 @@ impl UserRepository for PgUserRepository {
                     password,
                     profile,
                     allowed_applications as "allowed_applications!: Vec<String>",
+                    allowed_health_units as "allowed_health_units!: Vec<i64>",
                     enabled
                 "#,
                 &applications.applications_name as &[String],
@@ -366,6 +378,7 @@ impl UserRepository for PgUserRepository {
                 password: result.password,
                 profile: result.profile,
                 allowed_applications: result.allowed_applications,
+                allowed_health_units: result.allowed_health_units,
                 enabled: result.enabled,
             }))
         } else {
@@ -610,6 +623,62 @@ impl UserRepository for PgUserRepository {
             "#,
             new_password,
             user_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn add_health_unit(&self, id: Uuid, health_units: AddHealthUnitDto) -> Result<Option<User>, sqlx::Error> {
+        let current_user = self.find_by_id(id).await?;
+
+        if let Some(_) = current_user {
+            let result = sqlx::query!(
+                r#"
+                UPDATE users_api
+                SET allowed_health_units = array_cat(allowed_health_units, $1)
+                WHERE id = $2
+                RETURNING
+                    id,
+                    full_name,
+                    email,
+                    password,
+                    profile,
+                    allowed_applications as "allowed_applications!: Vec<String>",
+                    allowed_health_units as "allowed_health_units!: Vec<i64>",
+                    enabled
+                "#,
+                &health_units.health_units as &[i64],
+                id
+            )
+            .fetch_one(&self.pool)
+            .await?;
+
+            Ok(Some(User {
+                id: result.id,
+                full_name: result.full_name,
+                email: result.email,
+                password: result.password,
+                profile: result.profile,
+                allowed_applications: result.allowed_applications,
+                allowed_health_units: result.allowed_health_units,
+                enabled: result.enabled,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn delete_health_unit(&self, id: Uuid, health_unit_id: i64) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE users_api
+            SET allowed_health_units = array_remove(allowed_health_units, $1)
+            WHERE id = $2
+            "#,
+            health_unit_id,
+            id
         )
         .execute(&self.pool)
         .await?;

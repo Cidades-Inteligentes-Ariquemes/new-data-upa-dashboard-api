@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::adapters::password::PasswordEncryptorPort;
 
+use crate::domain::repositories::data_upa::DataRepository;
 use crate::domain::{
     email::email_service::EmailService,
     models::user::{
@@ -30,7 +31,10 @@ use crate::domain::{
 
 use crate::infrastructure::{
     email::email_service::SmtpEmailService,
-    repositories::user_repository::PgUserRepository,
+    repositories::{
+        user_repository::PgUserRepository,
+        data_upa_repository::PgDataRepository,
+    },
 };
 
 use crate::utils::{
@@ -47,17 +51,23 @@ use crate::utils::{
 };
 
 use crate::AppError;
-use crate::domain::models::user::IdVerificationDto;
+use crate::domain::models::user::{AddHealthUnitDto, IdVerificationDto};
 
 pub struct UserService {
     repo: web::Data<PgUserRepository>,
     password_encryptor: Box<dyn PasswordEncryptorPort>,
-    config: web::Data<Config>
+    config: web::Data<Config>,
+    data_repo: web::Data<PgDataRepository>,
 }
 
 impl UserService {
-    pub fn new(repo: web::Data<PgUserRepository>, password_encryptor: Box<dyn PasswordEncryptorPort>, config: web::Data<Config>) -> Self {
-        Self { repo, password_encryptor, config }
+    pub fn new(
+        repo: web::Data<PgUserRepository>, 
+        password_encryptor: Box<dyn PasswordEncryptorPort>, 
+        config: web::Data<Config>,
+        data_repo: web::Data<PgDataRepository>,
+    ) -> Self {
+        Self { repo, password_encryptor, config, data_repo }
     }
 
     pub async fn get_users(&self) -> Result<HttpResponse, AppError> {
@@ -99,6 +109,7 @@ impl UserService {
             ("password", user.password.is_empty()),
             ("profile", user.profile.is_empty()),
             ("allowed_applications", user.allowed_applications.is_empty()),
+            ("allowed_health_units", user.allowed_health_units.is_empty()),
         ];
 
         for (field_name, is_empty) in validations {
@@ -129,6 +140,48 @@ impl UserService {
         // Validação de aplicações permitidas
         validate_applications(&user.allowed_applications)?;
 
+        // Validação de unidades de saúde
+        if user.allowed_health_units.is_empty() {
+            return Err(AppError::BadRequest(
+                "Error adding user: at least one health unit must be specified".to_string()
+            ));
+        }
+
+        // Buscar todas as unidades disponíveis
+        let table_name = "bpa";
+        let columns = vec![
+            "ifrounidadeid".to_string(),
+            "ifrounidadenome".to_string()
+        ];
+
+        let available_health_units = match self.data_repo.fetch_distinct_health_units(table_name, &columns).await {
+            Ok(data) => {
+                let mut units = Vec::new();
+                
+                if let Some(ids) = data.get("ifrounidadeid") {
+                    for id in ids {
+                        if let Some(id_value) = id.as_i64() {
+                            units.push(id_value);
+                        }
+                    }
+                }
+                units
+            },
+            Err(e) => {
+                error!("Error fetching health units: {:?}", e);
+                return Err(AppError::InternalServerError);
+            }
+        };
+
+        // Validar cada unidade enviada
+        for unit_id in &user.allowed_health_units {
+            if !available_health_units.contains(unit_id) {
+                return Err(AppError::BadRequest(
+                    format!("Error adding user: health unit with id '{}' does not exist", unit_id)
+                ));
+            }
+        }
+
         // Hash da senha
         let mut user_with_hash = user;
         user_with_hash.password = self.password_encryptor
@@ -147,6 +200,7 @@ impl UserService {
         }
     }
 
+
     pub async fn update_user(&self, id: Uuid, user: UpdateUserDto) -> Result<HttpResponse, AppError> {
         // Verifica se o usuario existe
         if self.repo.find_by_id(id).await.unwrap().is_none() {
@@ -160,7 +214,8 @@ impl UserService {
             ("full_name", user.full_name.is_empty()),
             ("email", user.email.is_empty()),
             ("profile", user.profile.is_empty()),
-            ("allowed_applications", user.allowed_applications.is_empty())
+            ("allowed_applications", user.allowed_applications.is_empty()),
+            ("allowed_health_units", user.allowed_health_units.is_empty()),
         ];
 
         for (field_name, is_none) in validations {
@@ -183,6 +238,48 @@ impl UserService {
 
         // Validação de aplicações permitidas
         validate_applications(&user.allowed_applications)?;
+
+        // Validação de unidades de saúde
+        if user.allowed_health_units.is_empty() {
+            return Err(AppError::BadRequest(
+                "Error adding user: at least one health unit must be specified".to_string()
+            ));
+        }
+
+        // Buscar todas as unidades disponíveis
+        let table_name = "bpa";
+        let columns = vec![
+            "ifrounidadeid".to_string(),
+            "ifrounidadenome".to_string()
+        ];
+
+        let available_health_units = match self.data_repo.fetch_distinct_health_units(table_name, &columns).await {
+            Ok(data) => {
+                let mut units = Vec::new();
+                
+                if let Some(ids) = data.get("ifrounidadeid") {
+                    for id in ids {
+                        if let Some(id_value) = id.as_i64() {
+                            units.push(id_value);
+                        }
+                    }
+                }
+                units
+            },
+            Err(e) => {
+                error!("Error fetching health units: {:?}", e);
+                return Err(AppError::InternalServerError);
+            }
+        };
+
+        // Validar cada unidade enviada
+        for unit_id in &user.allowed_health_units {
+            if !available_health_units.contains(unit_id) {
+                return Err(AppError::BadRequest(
+                    format!("Error adding user: health unit with id '{}' does not exist", unit_id)
+                ));
+            }
+        }
 
         match self.repo.update(id, user).await {
             Ok(Some(user)) => Ok(ApiResponse::updated(UserResponse::from(user)).into_response()),
@@ -711,6 +808,112 @@ impl UserService {
             Ok(updated_password_hash) => Ok(ApiResponse::success(updated_password_hash).into_response()),
             Err(e) => {
                 error!("Error updating verification code: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn add_health_unit(&self, id: Uuid, health_units: AddHealthUnitDto) -> Result<HttpResponse, AppError> {
+        // Verifica se o usuário existe
+        if self.repo.find_by_id(id).await.unwrap().is_none() {
+            return Err(AppError::BadRequest(
+                format!("Error adding health units: user with id '{}' not found", id)
+            ));
+        }
+
+        // Validação para garantir que pelo menos uma unidade foi enviada
+        if health_units.health_units.is_empty() {
+            return Err(AppError::BadRequest(
+                "Error adding health units: health_units list cannot be empty".to_string()
+            ));
+        }
+
+        // Buscar todas as unidades disponíveis
+        let table_name = "bpa";
+        let columns = vec![
+            "ifrounidadeid".to_string(),
+            "ifrounidadenome".to_string()
+        ];
+
+        let available_health_units = match self.data_repo.fetch_distinct_health_units(table_name, &columns).await {
+            Ok(data) => {
+                let mut units = Vec::new();
+                
+                if let Some(ids) = data.get("ifrounidadeid") {
+                    for id in ids {
+                        if let Some(id_value) = id.as_i64() {
+                            units.push(id_value);
+                        }
+                    }
+                }
+                units
+            },
+            Err(e) => {
+                error!("Error fetching health units: {:?}", e);
+                return Err(AppError::InternalServerError);
+            }
+        };
+
+        // Obter o usuário para verificar duplicidades
+        let user = self.repo.find_by_id(id).await.unwrap().unwrap();
+        
+        // Validação para verificar se a unidade enviada já existe no usuário
+        for unit_id in health_units.health_units.iter() {
+            if !available_health_units.contains(unit_id) {
+                return Err(AppError::BadRequest(
+                    format!("Error adding health units: health unit with id '{}' does not exist", unit_id)
+                ));
+            }
+
+            if user.allowed_health_units.contains(unit_id) {
+                return Err(AppError::BadRequest(
+                    format!("Error adding health units: health unit with id '{}' already exists", unit_id)
+                ));
+            }
+        }
+
+        match self.repo.add_health_unit(id, health_units).await {
+            Ok(Some(user)) => Ok(ApiResponse::success(UserResponse::from(user)).into_response()),
+            Ok(None) => Ok(ApiResponse::<UserResponse>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error adding health units: {:?}", e);
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
+    pub async fn delete_health_unit(&self, id: Uuid, health_unit_id: i64) -> Result<HttpResponse, AppError> {
+        // Verifica se o usuário existe
+        let user = match self.repo.find_by_id(id).await {
+            Ok(Some(user)) => user,
+            Ok(None) => return Err(AppError::BadRequest(
+                format!("Error deleting health unit: user with id '{}' not found", id)
+            )),
+            Err(e) => {
+                error!("Error finding user: {:?}", e);
+                return Err(AppError::InternalServerError);
+            }
+        };
+
+        // Verifica se o usuário tem pelo menos 2 unidades (após remover, tem que ficar pelo menos 1)
+        if user.allowed_health_units.len() <= 1 {
+            return Err(AppError::BadRequest(
+                "Error deleting health unit: user must have at least one health unit".to_string()
+            ));
+        }
+
+        // Verifica se o usuário tem acesso à unidade que está tentando remover
+        if !user.allowed_health_units.contains(&health_unit_id) {
+            return Err(AppError::BadRequest(
+                format!("Error deleting health unit: user does not have access to health unit with id '{}'", health_unit_id)
+            ));
+        }
+
+        match self.repo.delete_health_unit(id, health_unit_id).await {
+            Ok(true) => Ok(ApiResponse::<()>::deleted().into_response()),
+            Ok(false) => Ok(ApiResponse::<()>::user_not_found().into_response()),
+            Err(e) => {
+                error!("Error deleting health unit: {:?}", e);
                 Err(AppError::InternalServerError)
             }
         }
