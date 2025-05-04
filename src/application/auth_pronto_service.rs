@@ -72,6 +72,7 @@ impl AuthProntoService {
                 String::from(""),  // Email vazio pois não está no banco Pronto
                 String::from("Usuario Comum"),
                 vec![String::from("xpredict")],
+                vec![2],
                 &self.config.jwt_secret,
             )
             .map_err(|e| {

@@ -14,6 +14,7 @@ pub struct LoginResponse {
     pub email: String,
     pub profile: String,
     pub allowed_applications: Vec<String>,
+    pub allowed_health_units: Vec<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,6 +25,7 @@ pub struct Claims {
     pub email: String,
     pub profile: String,
     pub allowed_applications: Vec<String>,
+    pub allowed_health_units: Vec<i64>,
 }
 
 

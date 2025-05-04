@@ -4,7 +4,16 @@ use crate::domain::models::auth::Claims;
 
 // Interface para geração de tokens
 pub trait TokenGeneratorPort: Send + Sync {
-    fn generate_token(&self, user_id: String, full_name: String, email: String, profile: String, allowed_applications: Vec<String>, secret: &str) -> Result<String, JwtError>;
+    fn generate_token(
+        &self, 
+        user_id: String, 
+        full_name: String, 
+        email: String, 
+        profile: String, 
+        allowed_applications: Vec<String>, 
+        allowed_health_units: Vec<i64>, 
+        secret: &str
+    ) -> Result<String, JwtError>;
 }
 
 // Implementação usando JWT
@@ -25,6 +34,7 @@ impl TokenGeneratorPort for JwtTokenGenerator {
         email: String,
         profile: String,
         allowed_applications: Vec<String>,
+        allowed_health_units: Vec<i64>,
         secret: &str
     ) -> Result<String, JwtError> {
         let expiration = SystemTime::now()
@@ -39,6 +49,7 @@ impl TokenGeneratorPort for JwtTokenGenerator {
             email,
             profile,
             allowed_applications,
+            allowed_health_units,
         };
 
         encode(

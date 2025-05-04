@@ -116,8 +116,8 @@ impl UpdateGraphDataService {
                 ]),
             ];
             
-            // Adiciona os parâmetros de mapas de calor apenas para a unidade 2 (UPA Ariquemes)
-            if unidade_id == 2 {
+            // Adiciona os parâmetros de mapas de calor se a unidade for diferente de 3
+            if unidade_id != 3 {
                 // Mapa de calor por doença
                 list_params.push(HashMap::from([
                     ("table", Value::String("bpa".to_string())),

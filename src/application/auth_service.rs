@@ -68,6 +68,7 @@ impl AuthService {
                 user.email.to_string(),
                 user.profile.clone(),
                 user.allowed_applications.clone(),
+                user.allowed_health_units.clone(),
                 &self.config.jwt_secret,
             )
             .map_err(|_| {
@@ -81,6 +82,7 @@ impl AuthService {
             email: user.email,
             profile: user.profile,
             allowed_applications: user.allowed_applications,
+            allowed_health_units: user.allowed_health_units,
         };
 
         Ok(HttpResponse::Ok().json(response))
