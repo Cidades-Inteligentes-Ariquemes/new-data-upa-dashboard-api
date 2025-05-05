@@ -1,4 +1,5 @@
 #[derive(serde::Deserialize)]
-pub struct UnitQueryParams {
-    pub unidade_id: Option<i32>,
+pub struct DataAccessParams {
+    pub user_id: String, 
+    pub unidade_id: i32,
 }

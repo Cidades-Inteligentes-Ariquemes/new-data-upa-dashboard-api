@@ -70,7 +70,8 @@ async fn main() -> std::io::Result<()> {
    ));
 
    let visualization_data_service = web::Data::new(VisualizationDataService::new(
-       data_repository.clone(),
+        data_repository.clone(),
+        user_repository.clone(),
    ));
 
    let information_service = web::Data::new(InformationService::new(
