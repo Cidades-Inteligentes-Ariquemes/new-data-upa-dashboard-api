@@ -41,13 +41,14 @@ impl AuthProntoService {
                 return Err(AppError::InternalServerError);
             }
         };
+
         if !verify_pronto_password(&credentials.password, &user.password_pronto) {
             return Err(AppError::Unauthorized("Incorrect password".into()));
         }
 
 
         // Busca os perfis do usuário
-        let profiles = match self.repo.get_user_profiles_by_login_and_unit_id(&user.login_id, 2).await {
+        let profiles = match self.repo.get_user_profiles_by_login_and_unit_id(&user.login_id, user.unit_id).await {
             Ok(profiles) if !profiles.is_empty() => profiles,
             Ok(_) => {
                 println!("No profiles found for user: {:?}", user);
@@ -72,7 +73,7 @@ impl AuthProntoService {
                 String::from(""),  // Email vazio pois não está no banco Pronto
                 String::from("Usuario Comum"),
                 vec![String::from("xpredict")],
-                vec![2],
+                vec![user.unit_id as i64],
                 &self.config.jwt_secret,
             )
             .map_err(|e| {
@@ -88,6 +89,7 @@ impl AuthProntoService {
             full_name: user.fullname,
             profile: String::from("Usuario Comum"),
             allowed_applications: vec![String::from("xpredict")],
+            allowed_health_units: vec![user.unit_id as i64],
         };
 
         Ok(ApiResponse::success(response).into_response())

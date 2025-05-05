@@ -24,6 +24,7 @@ pub struct UserPronto {
     pub userid: String,    
     pub login_id: String, 
     pub fullname: String,
+    pub unit_id: i32,
 }
 
 #[derive(Debug, Serialize)]
@@ -33,4 +34,5 @@ pub struct LoginProntoResponse {
     pub full_name: String,
     pub profile: String,
     pub allowed_applications: Vec<String>,
+    pub allowed_health_units: Vec<i64>,
 }

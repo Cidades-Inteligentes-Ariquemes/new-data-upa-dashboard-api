@@ -48,48 +48,58 @@ impl AuthProntoRepository for SqlServerAuthProntoRepository {
                 return Err(e);
             }
         };
-
-        let query = "SELECT 
-                        Login.LoginCodigo, 
-                        Login.LoginSenha, 
-                        CAST(Login.LoginOUsuario AS VARCHAR(50)) AS LoginOUsuario, 
-                        CAST(Login.LoginId AS VARCHAR(50)) AS LoginId, 
-                        Usuario.UsuarioNome
-                    FROM Login
-                    JOIN Usuario ON Login.LoginOUsuario = Usuario.UsuarioId
-                    WHERE Login.LoginCodigo = @P1";
-
+    
+        let query = "SELECT
+                                L.LoginCodigo,
+                                L.LoginSenha,
+                                CAST(L.LoginOUsuario AS VARCHAR(50)) AS LoginOUsuario,
+                                CAST(L.LoginId AS VARCHAR(50)) AS LoginId,
+                                U.UsuarioNome,
+                                CAST(LA.UnidadeId AS INT) AS UnidadeId
+                            FROM
+                                Login AS L
+                            JOIN
+                                Usuario AS U ON L.LoginOUsuario = U.UsuarioId
+                            JOIN
+                                LoginAlocacao AS LA ON L.LoginId = LA.LoginId
+                            WHERE
+                                L.LoginCodigo = @P1;";
+    
         let stream = client
             .query(query, &[&username])
             .await?;
-
+    
         let result = stream
             .into_first_result()
             .await?;
-
+    
         if result.is_empty() {
             return Ok(None);
         }
-
+    
         let row = &result[0];
-
+    
         // Logando os tipos das colunas para debug
         info!("Coluna 0 (LoginCodigo): {:?}", row.try_get::<&str, _>(0));
         info!("Coluna 1 (LoginSenha): {:?}", row.try_get::<&str, _>(1));
         info!("Coluna 2 (LoginOUsuario): {:?}", row.try_get::<&str, _>(2));
         info!("Coluna 3 (LoginId): {:?}", row.try_get::<&str, _>(3));
         info!("Coluna 4 (UsuarioNome): {:?}", row.try_get::<&str, _>(4));
-
+        info!("Coluna 5 (UnidadeId): {:?}", row.try_get::<i32, _>(5));  // Mudando para i32
+    
         let user = UserPronto {
             username: row.get::<&str, _>(0).unwrap_or_default().to_string(),
             password_pronto: row.get::<&str, _>(1).unwrap_or_default().to_string(),
             userid: row.get::<&str, _>(2).unwrap_or_default().to_string(),
             login_id: row.get::<&str, _>(3).unwrap_or_default().to_string(),
             fullname: row.get::<&str, _>(4).unwrap_or_default().to_string(),
+            unit_id: row.get::<i32, _>(5).unwrap_or(0),  // Mudando para i32
         };
-
-        info!("User found by username: {}, userid: {}, login_id: {}", 
-              user.username, user.userid, user.login_id);
+    
+        let unidade_id = row.get::<i32, _>(5).unwrap_or(0);
+        info!("User found by username: {}, userid: {}, login_id: {}, unidade_id: {}", 
+              user.username, user.userid, user.login_id, unidade_id);
+        
         Ok(Some(user))
     }
 
