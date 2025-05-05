@@ -40,7 +40,7 @@ impl SqlServerAuthProntoRepository {
 
 #[async_trait]
 impl AuthProntoRepository for SqlServerAuthProntoRepository {
-    async fn get_user_pronto_by_username_with_fullname(&self, username: &str) -> Result<Option<UserPronto>, Box<dyn Error + Send + Sync>> {
+    async fn get_user_pronto_by_username_with_fullname(&self, username: &str) -> Result<Option<Vec<UserPronto>>, Box<dyn Error + Send + Sync>> {
         let mut client = match self.get_client().await {
             Ok(client) => client,
             Err(e) => {
@@ -76,31 +76,51 @@ impl AuthProntoRepository for SqlServerAuthProntoRepository {
         if result.is_empty() {
             return Ok(None);
         }
+
+        let mut user_units = Vec::new();
+
+        for row in result {
+            // // Logando os tipos das colunas para debug
+            info!("Coluna 0 (LoginCodigo): {:?}", row.try_get::<&str, _>(0));
+            info!("Coluna 1 (LoginSenha): {:?}", row.try_get::<&str, _>(1));
+            info!("Coluna 2 (LoginOUsuario): {:?}", row.try_get::<&str, _>(2));
+            info!("Coluna 3 (LoginId): {:?}", row.try_get::<&str, _>(3));
+            info!("Coluna 4 (UsuarioNome): {:?}", row.try_get::<&str, _>(4));
+            info!("Coluna 5 (UnidadeId): {:?}", row.try_get::<i32, _>(5));
+
+            if user_units.is_empty() {
+                info!("Coluna 0 (LoginCodigo): {:?}", row.try_get::<&str, _>(0));
+                info!("Coluna 1 (LoginSenha): {:?}", row.try_get::<&str, _>(1));
+                info!("Coluna 2 (LoginOUsuario): {:?}", row.try_get::<&str, _>(2));
+                info!("Coluna 3 (LoginId): {:?}", row.try_get::<&str, _>(3));
+                info!("Coluna 4 (UsuarioNome): {:?}", row.try_get::<&str, _>(4));
+                info!("Coluna 5 (UnidadeId): {:?}", row.try_get::<i32, _>(5));
+            }  
     
-        let row = &result[0];
+            let user = UserPronto {
+                username: row.get::<&str, _>(0).unwrap_or_default().to_string(),
+                password_pronto: row.get::<&str, _>(1).unwrap_or_default().to_string(),
+                userid: row.get::<&str, _>(2).unwrap_or_default().to_string(),
+                login_id: row.get::<&str, _>(3).unwrap_or_default().to_string(),
+                fullname: row.get::<&str, _>(4).unwrap_or_default().to_string(),
+                unit_id: row.get::<i32, _>(5).unwrap_or(0),
+            };
+
+            let unidade_id = row.get::<i32, _>(5).unwrap_or(0);
+            info!("User found by username: {}, userid: {}, login_id: {}, unidade_id: {}", 
+                  user.username, user.userid, user.login_id, unidade_id);
     
-        // Logando os tipos das colunas para debug
-        info!("Coluna 0 (LoginCodigo): {:?}", row.try_get::<&str, _>(0));
-        info!("Coluna 1 (LoginSenha): {:?}", row.try_get::<&str, _>(1));
-        info!("Coluna 2 (LoginOUsuario): {:?}", row.try_get::<&str, _>(2));
-        info!("Coluna 3 (LoginId): {:?}", row.try_get::<&str, _>(3));
-        info!("Coluna 4 (UsuarioNome): {:?}", row.try_get::<&str, _>(4));
-        info!("Coluna 5 (UnidadeId): {:?}", row.try_get::<i32, _>(5));  // Mudando para i32
-    
-        let user = UserPronto {
-            username: row.get::<&str, _>(0).unwrap_or_default().to_string(),
-            password_pronto: row.get::<&str, _>(1).unwrap_or_default().to_string(),
-            userid: row.get::<&str, _>(2).unwrap_or_default().to_string(),
-            login_id: row.get::<&str, _>(3).unwrap_or_default().to_string(),
-            fullname: row.get::<&str, _>(4).unwrap_or_default().to_string(),
-            unit_id: row.get::<i32, _>(5).unwrap_or(0),  // Mudando para i32
-        };
-    
-        let unidade_id = row.get::<i32, _>(5).unwrap_or(0);
-        info!("User found by username: {}, userid: {}, login_id: {}, unidade_id: {}", 
-              user.username, user.userid, user.login_id, unidade_id);
-        
-        Ok(Some(user))
+            user_units.push(user);
+        }
+
+        if user_units.is_empty() {
+            info!("No user found with username: {}", username);
+            return Ok(None);
+        } else {
+            info!("Found {} user(s) with username: {}", user_units.len(), username);
+            Ok(Some(user_units))
+        }
+
     }
 
     async fn get_user_profiles_by_login_and_unit_id(&self, login_id: &str, unit_id: i32) -> Result<Vec<ProfileInfo>, Box<dyn Error + Send + Sync>> {

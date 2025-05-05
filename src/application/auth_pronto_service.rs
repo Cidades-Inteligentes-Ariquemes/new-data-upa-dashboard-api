@@ -42,13 +42,19 @@ impl AuthProntoService {
             }
         };
 
-        if !verify_pronto_password(&credentials.password, &user.password_pronto) {
+        if !verify_pronto_password(&credentials.password, &user[0].password_pronto) {
             return Err(AppError::Unauthorized("Incorrect password".into()));
         }
 
 
+        let mut units_id = Vec::new();
+
+        for unit in &user {
+            units_id.push(unit.unit_id as i64);
+        }
+
         // Busca os perfis do usuário
-        let profiles = match self.repo.get_user_profiles_by_login_and_unit_id(&user.login_id, user.unit_id).await {
+        let profiles = match self.repo.get_user_profiles_by_login_and_unit_id(&user[0].login_id, user[0].unit_id).await {
             Ok(profiles) if !profiles.is_empty() => profiles,
             Ok(_) => {
                 println!("No profiles found for user: {:?}", user);
@@ -68,12 +74,12 @@ impl AuthProntoService {
         // Gera o token JWT
         let token = self.token_generator
             .generate_token(
-                user.userid.to_string(),
-                user.fullname.clone(),
+                user[0].userid.to_string(),
+                user[0].fullname.clone(),
                 String::from(""),  // Email vazio pois não está no banco Pronto
                 String::from("Usuario Comum"),
                 vec![String::from("xpredict")],
-                vec![user.unit_id as i64],
+                units_id.clone(),
                 &self.config.jwt_secret,
             )
             .map_err(|e| {
@@ -85,11 +91,11 @@ impl AuthProntoService {
         
         let response = LoginProntoResponse {
             token,
-            user_id: user.userid.to_string(),
-            full_name: user.fullname,
+            user_id: user[0].userid.to_string(),
+            full_name: user[0].fullname.clone(),
             profile: String::from("Usuario Comum"),
             allowed_applications: vec![String::from("xpredict")],
-            allowed_health_units: vec![user.unit_id as i64],
+            allowed_health_units: units_id,
         };
 
         Ok(ApiResponse::success(response).into_response())
