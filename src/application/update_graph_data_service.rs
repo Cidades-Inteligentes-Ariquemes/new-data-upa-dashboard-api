@@ -173,45 +173,69 @@ impl UpdateGraphDataService {
                     continue; // Passa para o próximo parâmetro
                 }
     
-                // Cria DataFrame
-                let df = match create_dataframe_from_dict(&result_dict) {
-                    Ok(df) => df,
-                    Err(e) => {
-                        error!("Erro ao criar DataFrame para {} na unidade {}: {}", 
+                
+                if identifier == "distribuition_of_patients_ages" {
+                    let organized_data = self.data_processing.create_dict_to_distribuition_of_patients_ages_from_raw(
+                        &result_dict
+                    ).await.map_err(|e| {
+                        error!("Erro no método create_dict_to_distribuition_of_patients_ages_from_raw: {}", e);
+                        AppError::DataProcessingError(e.to_string())
+                    })?;
+                    
+                    if let Err(e) = self.save_processed_data_with_unit(
+                        organized_data, 
+                        table_json, 
+                        identifier, 
+                        unidade_id
+                    ).await {
+                        error!("Falha ao salvar {} para unidade {}: {}", 
                                identifier, unidade_id, e);
+                        // Continua com o próximo parâmetro
                         continue;
                     }
-                };
-    
-                // Processamento condicional
-                let organized_data = match identifier {
-                    "number_of_visits_per_doctor" | "average_time_per_doctor" => {
-                        let non_doctors = self.get_additional_data("non_doctors").await?;
-                        self.call_processing_method(method_name, &df, Some(&non_doctors)).await?
-                    },
-                    "number_of_visits_per_nurse" => {
-                        let non_nurse = self.get_additional_data("non_nurse").await?;
-                        self.call_processing_method(method_name, &df, Some(&non_nurse)).await?
-                    },
-                    _ => self.call_processing_method(method_name, &df, None).await?,
-                };
-    
-                // Salva dados incluindo o id da unidade
-                if let Err(e) = self.save_processed_data_with_unit(
-                    organized_data, 
-                    table_json, 
-                    identifier, 
-                    unidade_id
-                ).await {
-                    error!("Falha ao salvar {} para unidade {}: {}", 
-                           identifier, unidade_id, e);
-                    // Continua com o próximo parâmetro
-                    continue;
-                }
+                } else {
+                    // Criar DataFrame e processar outros casos normalmente
+                    let df = match create_dataframe_from_dict(&result_dict) {
+                        Ok(df) => df,
+                        Err(e) => {
+                            error!("Erro ao criar DataFrame para {} na unidade {}: {}", 
+                                   identifier, unidade_id, e);
+                            continue;
+                        }
+                    };
+                  
+                    
+                    // Processamento condicional
+                    let organized_data = match identifier {
+                        "number_of_visits_per_doctor" | "average_time_per_doctor" => {
+                            let non_doctors = self.get_additional_data("non_doctors").await?;
+                            self.call_processing_method(method_name, &df, Some(&non_doctors)).await?
+                        },
+                        "number_of_visits_per_nurse" => {
+                            let non_nurse = self.get_additional_data("non_nurse").await?;
+                            self.call_processing_method(method_name, &df, Some(&non_nurse)).await?
+                        },
+                        _ => self.call_processing_method(method_name, &df, None).await?,
+                    };
                 
-                info!("Dados de {} para unidade {} salvos com sucesso", 
-                      identifier, unidade_id);
-            }
+                    // Salva dados incluindo o id da unidade
+                    if let Err(e) = self.save_processed_data_with_unit(
+                        organized_data, 
+                        table_json, 
+                        identifier, 
+                        unidade_id
+                    ).await {
+                        error!("Falha ao salvar {} para unidade {}: {}", 
+                               identifier, unidade_id, e);
+                        // Continua com o próximo parâmetro
+                        continue;
+                    }
+
+                    info!("Dados de {} para unidade {} salvos com sucesso", 
+                          identifier, unidade_id);
+                }
+            } 
+
         }
     
         Ok(ApiResponse::updated(()).into_response())
@@ -241,9 +265,9 @@ impl UpdateGraphDataService {
             ("create_dict_to_number_of_appointments_per_flow", None) =>
                 self.data_processing.create_dict_to_number_of_appointments_per_flow(main_df).await
                     .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
-            ("create_dict_to_distribuition_of_patients_ages", None) =>
-                self.data_processing.create_dict_to_distribuition_of_patients_ages(main_df).await
-                    .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
+            // ("create_dict_to_distribuition_of_patients_ages", None) =>
+            //     self.data_processing.create_dict_to_distribuition_of_patients_ages_from_raw(main_df).await
+            //         .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),
             ("create_dict_to_number_of_calls_per_day_of_the_week", None) =>
                 self.data_processing.create_dict_to_number_of_calls_per_day_of_the_week(main_df).await
                     .map_err(|e| { error!("Erro no método {}: {}", method, e); AppError::DataProcessingError(e.to_string()) }),

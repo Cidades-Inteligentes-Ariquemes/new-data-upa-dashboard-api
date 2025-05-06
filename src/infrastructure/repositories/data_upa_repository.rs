@@ -3,7 +3,7 @@ use crate::utils::process_data::convert_keys_to_str;
 use async_trait::async_trait;
 use polars::frame::DataFrame;
 use serde_json::{Value, json};
-use sqlx::{Column, PgPool, Row};
+use sqlx::{Column, PgPool, Row, ValueRef};
 use uuid::Uuid;
 use std::collections::HashMap;
 use std::error::Error;
@@ -501,6 +501,114 @@ impl DataRepository for PgDataRepository {
         Ok(values)
     }
 
+    // async fn fetch_columns_by_name_with_filter(
+    //     &self, 
+    //     table: &str, 
+    //     columns: &[String], 
+    //     filter_column: &str, 
+    //     filter_value: i32
+    // ) -> Result<HashMap<String, Vec<Value>>, Box<dyn Error + Send + Sync>> {
+    //     // Constrói a query com filtro
+    //     let query = format!(
+    //         "SELECT {} FROM {} WHERE {} = $1", 
+    //         columns.join(", "), 
+    //         table, 
+    //         filter_column
+    //     );
+    
+    //     // Executa a query
+    //     let rows = sqlx::query(&query)
+    //         .bind(filter_value)
+    //         .fetch_all(&self.pool)
+    //         .await?;
+    
+    //     if rows.is_empty() {
+    //         println!(
+    //             "Nenhum dado encontrado em {} para colunas {} com filtro {}={}", 
+    //             table, columns.join(", "), filter_column, filter_value
+    //         );
+    //         return Ok(HashMap::new());
+    //     }
+    
+    //     // Inicializar o resultado
+    //     let mut result: HashMap<String, Vec<Value>> = HashMap::new();
+    //     for col_name in columns {
+    //         result.insert(col_name.to_string(), Vec::new());
+    //     }
+    
+    //     // Para cada linha de resultado
+    //     for row in &rows {
+    //         // Para cada coluna na linha
+    //         for (i, column_name) in columns.iter().enumerate() {
+    //             // Tenta obter o valor baseado no tipo da coluna
+    //             let column = row.columns().get(i).unwrap();
+    //             let value: Value = match column.type_info().to_string().as_str() {
+    //                 "INT4" | "INT8" => {
+    //                     if let Ok(v) = row.try_get::<i64, _>(i) {
+    //                         json!(v)
+    //                     } else {
+    //                         Value::Null
+    //                     }
+    //                 },
+    //                 "FLOAT4" | "FLOAT8" => {
+    //                     if let Ok(v) = row.try_get::<f64, _>(i) {
+    //                         json!(v)
+    //                     } else {
+    //                         Value::Null
+    //                     }
+    //                 },
+    //                 "VARCHAR" | "TEXT" => {
+    //                     if let Ok(v) = row.try_get::<String, _>(i) {
+    //                         json!(v)
+    //                     } else {
+    //                         Value::Null
+    //                     }
+    //                 },
+    //                 "BOOL" => {
+    //                     if let Ok(v) = row.try_get::<bool, _>(i) {
+    //                         json!(v)
+    //                     } else {
+    //                         Value::Null
+    //                     }
+    //                 },
+    //                 "TIMESTAMP" | "TIMESTAMPTZ" => {
+    //                     if let Ok(v) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
+    //                         json!(v.to_string())
+    //                     } else {
+    //                         Value::Null
+    //                     }
+    //                 },
+    //                 "DATE" => {
+    //                     if let Ok(v) = row.try_get::<chrono::NaiveDate, _>(i) {
+    //                         json!(v.to_string())
+    //                     } else {
+    //                         Value::Null
+    //                     }
+    //                 },
+    //                 _ => {
+    //                     // Para outros tipos, tenta obter como string
+    //                     if let Ok(v) = row.try_get::<String, _>(i) {
+    //                         json!(v)
+    //                     } else {
+    //                         Value::Null
+    //                     }
+    //                 }
+    //             };
+    
+    //             // Adiciona o valor ao vetor da coluna
+    //             if let Some(column_values) = result.get_mut(column_name) {
+    //                 column_values.push(value);
+    //             }
+    //         }
+    //     }
+    
+    //     println!(
+    //         "Buscou colunas {:?} da tabela {} com filtro {}={}", 
+    //         columns, table, filter_column, filter_value
+    //     );
+    //     Ok(result)
+    // }
+
     async fn fetch_columns_by_name_with_filter(
         &self, 
         table: &str, 
@@ -515,6 +623,9 @@ impl DataRepository for PgDataRepository {
             table, 
             filter_column
         );
+    
+        // Imprime a query para debug
+        println!("Executando query: {}", query);
     
         // Executa a query
         let rows = sqlx::query(&query)
@@ -537,63 +648,108 @@ impl DataRepository for PgDataRepository {
         }
     
         // Para cada linha de resultado
-        for row in &rows {
+        for (row_idx, row) in rows.iter().enumerate() {
+            // Para debug, imprime algumas primeiras linhas
+            if row_idx < 5 {
+                println!("Processando linha {}", row_idx);
+            }
+    
             // Para cada coluna na linha
             for (i, column_name) in columns.iter().enumerate() {
                 // Tenta obter o valor baseado no tipo da coluna
                 let column = row.columns().get(i).unwrap();
-                let value: Value = match column.type_info().to_string().as_str() {
+                let type_name = column.type_info().to_string();
+                
+                // Para debug das primeiras linhas
+                if row_idx < 5 {
+                    println!("Coluna {} ({}): tipo={}", i, column_name, type_name);
+                }
+                
+                let value: Value = match type_name.as_str() {
                     "INT4" | "INT8" => {
-                        if let Ok(v) = row.try_get::<i64, _>(i) {
+                        // Vrifica se o valor é NULL antes de tentar obter
+                        if row.try_get_raw(i)?.is_null() {
+                            // Se for NULL, retorna 0 ou outro valor padrão em vez de NULL
+                            json!(0) 
+                        } else if let Ok(v) = row.try_get::<i64, _>(i) {
+                            // Se não for NULL e conseguir obter como i64
                             json!(v)
+                        } else if let Ok(v) = row.try_get::<i32, _>(i) {
+                            // Tenta i32 também como fallback
+                            json!(v as i64)
                         } else {
+                            // Fallback final
+                            println!("Erro ao obter valor INT para {}", column_name);
                             Value::Null
                         }
                     },
                     "FLOAT4" | "FLOAT8" => {
-                        if let Ok(v) = row.try_get::<f64, _>(i) {
+                        if row.try_get_raw(i)?.is_null() {
+                            json!(0.0)  // Ou Value::Null
+                        } else if let Ok(v) = row.try_get::<f64, _>(i) {
                             json!(v)
                         } else {
+                            println!("Erro ao obter valor FLOAT para {}", column_name);
                             Value::Null
                         }
                     },
                     "VARCHAR" | "TEXT" => {
-                        if let Ok(v) = row.try_get::<String, _>(i) {
+                        if row.try_get_raw(i)?.is_null() {
+                            json!("")  // String vazia para NULL
+                        } else if let Ok(v) = row.try_get::<String, _>(i) {
                             json!(v)
                         } else {
+                            println!("Erro ao obter valor VARCHAR/TEXT para {}", column_name);
                             Value::Null
                         }
                     },
                     "BOOL" => {
-                        if let Ok(v) = row.try_get::<bool, _>(i) {
+                        if row.try_get_raw(i)?.is_null() {
+                            json!(false)  // Ou Value::Null
+                        } else if let Ok(v) = row.try_get::<bool, _>(i) {
                             json!(v)
                         } else {
+                            println!("Erro ao obter valor BOOL para {}", column_name);
                             Value::Null
                         }
                     },
                     "TIMESTAMP" | "TIMESTAMPTZ" => {
-                        if let Ok(v) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
+                        if row.try_get_raw(i)?.is_null() {
+                            Value::Null
+                        } else if let Ok(v) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
                             json!(v.to_string())
                         } else {
+                            println!("Erro ao obter valor TIMESTAMP para {}", column_name);
                             Value::Null
                         }
                     },
                     "DATE" => {
-                        if let Ok(v) = row.try_get::<chrono::NaiveDate, _>(i) {
+                        if row.try_get_raw(i)?.is_null() {
+                            Value::Null
+                        } else if let Ok(v) = row.try_get::<chrono::NaiveDate, _>(i) {
                             json!(v.to_string())
                         } else {
+                            println!("Erro ao obter valor DATE para {}", column_name);
                             Value::Null
                         }
                     },
                     _ => {
                         // Para outros tipos, tenta obter como string
-                        if let Ok(v) = row.try_get::<String, _>(i) {
+                        if row.try_get_raw(i)?.is_null() {
+                            Value::Null
+                        } else if let Ok(v) = row.try_get::<String, _>(i) {
                             json!(v)
                         } else {
+                            println!("Erro ao obter valor de tipo desconhecido para {}", column_name);
                             Value::Null
                         }
                     }
                 };
+    
+                // Para debug das primeiras linhas
+                if row_idx < 5 {
+                    println!("Valor obtido: {:?}", value);
+                }
     
                 // Adiciona o valor ao vetor da coluna
                 if let Some(column_values) = result.get_mut(column_name) {
@@ -606,6 +762,19 @@ impl DataRepository for PgDataRepository {
             "Buscou colunas {:?} da tabela {} com filtro {}={}", 
             columns, table, filter_column, filter_value
         );
+        
+        // Imprimir amostras dos dados obtidos para debug
+        for col_name in columns {
+            if let Some(values) = result.get(col_name) {
+                let sample = if values.len() > 5 {
+                    &values[0..5]
+                } else {
+                    values
+                };
+                println!("Amostra de valores para {}: {:?}", col_name, sample);
+            }
+        }
+        
         Ok(result)
     }
 

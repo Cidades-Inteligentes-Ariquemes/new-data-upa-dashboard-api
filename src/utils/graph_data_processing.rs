@@ -126,81 +126,127 @@ impl DataProcessingForGraphPlotting {
     }
 
 
-    pub async fn create_dict_to_distribuition_of_patients_ages(&self, df: &DataFrame) -> Result<Value, Box<dyn Error + Send + Sync>> {
-        println!("Processando distribuição de idades dos pacientes");
+    pub async fn create_dict_to_distribuition_of_patients_ages_from_raw(
+        &self, 
+        raw_data: &HashMap<String, Vec<Value>>
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
+        println!("Processando distribuição de idades dos pacientes a partir de dados brutos");
         
-        // Verificar colunas do DataFrame
-        println!("Colunas disponíveis: {:?}", df.get_column_names());
-        
-        // Extrair dados
-        let idades_str = df.column("ifropacienteidade")?
-            .str()?
-            .into_iter()
-            .collect::<Vec<Option<&str>>>();
-        
-        let competencias = df.column("ifrocompetencia")?
-            .str()?
-            .into_iter()
-            .filter_map(|opt_s| opt_s.map(String::from))
-            .collect::<Vec<String>>();
-        
-        // Log de dados brutos
-        println!("Primeiras 5 idades (str): {:?}", &idades_str[..5]);
-        println!("Primeiras 5 competências: {:?}", &competencias[..5]);
-        
-        // Converter idades para i32
-        let mut idades = Vec::new();
-        let mut invalid_ages = 0;
-        for s in idades_str {
-            match s.and_then(|v| v.parse::<i32>().ok()) {
-                Some(age) => idades.push(age),
-                None => {
-                    invalid_ages += 1;
-                    idades.push(-1);
-                }
+        // Extrai vetores de competência e idade diretamente do HashMap
+        let competencias = match raw_data.get("ifrocompetencia") {
+            Some(comp_values) => comp_values,
+            None => {
+                println!("Competência não encontrada no mapa de dados");
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Coluna ifrocompetencia não encontrada"
+                )));
             }
-        }
-        println!("Total de idades inválidas: {}", invalid_ages);
+        };
         
-        // Definir faixas corretas (right=False como no Python)
+        let idades = match raw_data.get("ifropacienteidade") {
+            Some(age_values) => age_values,
+            None => {
+                println!("Idade não encontrada no mapa de dados");
+                return Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Coluna ifropacienteidade não encontrada"
+                )));
+            }
+        };
+        
+        let n_rows = competencias.len();
+        println!("Número de linhas: {}", n_rows);
+        
+        // Amostra de dados para debug
+        println!("Amostra de competências: {:?}", &competencias[0..5.min(competencias.len())]);
+        println!("Amostra de idades: {:?}", &idades[0..5.min(idades.len())]);
+        
+        // Definir faixas etárias
         let age_groups = vec![
-            ("0 a 19", 0..19),
-            ("20 a 39", 19..39),
-            ("40 a 59", 39..59),
-            ("60 a 79", 59..79),
-            ("80 a 100", 79..100),
-            ("+ de 100", 100..i32::MAX)
+            ("0 a 19", 0..20),
+            ("20 a 39", 20..40),
+            ("40 a 59", 40..60),
+            ("60 a 79", 60..80),
+            ("80 a 100", 80..101),
+            ("+ de 100", 101..i32::MAX)
         ];
         
-        // Contadores
+        // Contadores para cada faixa etária
         let mut age_data: HashMap<&str, HashMap<String, i64>> = HashMap::new();
         for (group, _) in &age_groups {
             age_data.insert(group, HashMap::new());
         }
         
-        // Classificar cada idade
-        for (i, &idade) in idades.iter().enumerate() {
-            if idade < 0 {
-                continue;
+        // Processar cada linha
+        let mut valid_ages = 0;
+        let mut invalid_ages = 0;
+        
+        for i in 0..n_rows {
+            // Extrair idade
+            let idade = match &idades[i] {
+                Value::Number(n) => {
+                    if let Some(num) = n.as_i64() {
+                        valid_ages += 1;
+                        num as i32
+                    } else if let Some(num) = n.as_f64() {
+                        valid_ages += 1;
+                        num as i32
+                    } else {
+                        invalid_ages += 1;
+                        -1
+                    }
+                },
+                Value::String(s) => {
+                    match s.parse::<i32>() {
+                        Ok(num) => {
+                            valid_ages += 1;
+                            num
+                        },
+                        Err(_) => {
+                            invalid_ages += 1;
+                            -1
+                        }
+                    }
+                },
+                _ => {
+                    invalid_ages += 1;
+                    -1
+                }
+            };
+            
+            // Extrai competência
+            let competencia = match &competencias[i] {
+                Value::String(s) => s.clone(),
+                _ => {
+                    // Pular se não conseguir extrair competência
+                    continue;
+                }
+            };
+            
+            // Log para debug das primeiras linhas
+            if i < 10 {
+                println!("Linha {}: idade={}, competencia={}", i, idade, competencia);
             }
             
-            let mut selected_group = "+ de 100";
-            for (group, range) in &age_groups {
-                if range.contains(&idade) {
-                    selected_group = *group;
-                    break;
+            // Se idade válida, classifica na faixa etária correspondente
+            if idade >= 0 {
+                for (group, range) in &age_groups {
+                    if range.contains(&idade) {
+                        *age_data
+                            .get_mut(group)
+                            .unwrap()
+                            .entry(competencia.clone())
+                            .or_insert(0) += 1;
+                        break;
+                    }
                 }
             }
-            
-            let competencia = &competencias[i];
-            *age_data
-                .get_mut(selected_group)
-                .unwrap()
-                .entry(competencia.clone())
-                .or_insert(0) += 1;
         }
         
-        // Construir resultado
+        println!("Idades válidas: {}, Idades inválidas: {}", valid_ages, invalid_ages);
+        
+        // Construir o resultado final
         let mut result = HashMap::new();
         for (group, _) in &age_groups {
             let counts = &age_data[group];
@@ -215,6 +261,9 @@ impl DataProcessingForGraphPlotting {
             
             result.insert(group.to_string(), json!(group_data));
         }
+        
+        // Debug do resultado
+        println!("Resultado: {}", json!(result));
         
         Ok(json!(result))
     }
@@ -233,42 +282,41 @@ impl DataProcessingForGraphPlotting {
             ("Sunday", "domingo")
         ];
         
-        // Criar Series com mapeamento de dias
-        // Initialize with a complete when/then/otherwise to get an Expr
+        // Cria Series com mapeamento de dias
         let mut day_mapping_expr: Expr = when(col("ifrodiasemana").eq(lit("")))
             .then(lit(""))
-            .otherwise(lit("")); // Placeholder, will be overwritten or extended
+            .otherwise(lit("")); 
         
         for (en_day, pt_day) in day_mappings.iter() {
-            day_mapping_expr = when(col("ifrodiasemana").eq(lit(*en_day))) // Start a new when for each mapping
+            day_mapping_expr = when(col("ifrodiasemana").eq(lit(*en_day)))
                 .then(lit(*pt_day))
-                .otherwise(day_mapping_expr); // Chain the previous expression in otherwise
+                .otherwise(day_mapping_expr); 
         }
         
-        // Aplicar mapeamento
+        // Aplica mapeamento
         let df_with_pt_days = df.clone().lazy()
             .with_column(day_mapping_expr.alias("dia_semana_pt"))
             .collect()?;
         
-        // Criar dicionário organizado para cada dia da semana
+        // Cria dicionário organizado para cada dia da semana
         let mut organized_data = HashMap::new();
         
         for (_, pt_day) in day_mappings.iter() {
-            // Filtrar por este dia da semana
+            // Filtra por este dia da semana
             let pt_day_owned = (*pt_day).to_string();
             
             let df_day = df_with_pt_days.clone().lazy()
                 .filter(col("dia_semana_pt").eq(lit(pt_day_owned.clone())))
                 .collect()?;
             
-            // Extrair competências
+            // Extrai competências
             let competencias = df_day.column("ifrocompetencia")?
                 .str()?
                 .into_iter()
                 .filter_map(|opt_s| opt_s.map(String::from))
                 .collect::<Vec<String>>();
             
-            // Fazer contagem manual
+            // Faz a contagem manual
             let mut comp_counts: HashMap<String, i64> = HashMap::new();
             for comp in competencias {
                 *comp_counts.entry(comp).or_insert(0) += 1;
@@ -277,7 +325,7 @@ impl DataProcessingForGraphPlotting {
             let mut day_data = HashMap::new();
             day_data.insert("todos".to_string(), json!(df_day.height() as i64));
             
-            // Adicionar contagens por competência
+            // Adiciona contagens por competência
             for (competencia, count) in comp_counts {
                 day_data.insert(competencia, json!(count));
             }
