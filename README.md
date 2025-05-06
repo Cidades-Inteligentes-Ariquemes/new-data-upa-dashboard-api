@@ -545,3 +545,7 @@ Ao desenvolver novas funcionalidades:
 4. Implemente serviços em `application`
 5. Crie handlers em `handlers`
 6. Configure rotas em `routes`
+
+## Autor
+
+https://github.com/DiogoBrazil
