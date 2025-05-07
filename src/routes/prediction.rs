@@ -16,5 +16,9 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                 web::resource("/predict_tb")
                     .route(web::post().to(prediction_handler::predict_tuberculosis))
             )
+            .service(
+                web::resource("/predict_osteoporosis")
+                    .route(web::post().to(prediction_handler::predict_osteoporosis))
+            )
     );
 }

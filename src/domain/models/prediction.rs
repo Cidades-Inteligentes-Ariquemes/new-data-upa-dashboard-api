@@ -31,7 +31,30 @@ pub struct TuberculosisPredictionResponse {
     pub probabilities: TuberculosisProbabilities,
 }
 
+
+
 #[derive(Serialize, Deserialize)]
 pub struct TBResponse {
     pub prediction_tb: TuberculosisPredictionResponse,
+}
+
+
+#[derive(Serialize, Deserialize)]
+pub struct OsteoporosisProbabilities {
+    pub normal: f32,
+    pub osteopenia: f32,
+    pub osteoporosis: f32,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OsteoporosisPredictionResponse {
+    pub class_pred: String,
+    pub probabilities: OsteoporosisProbabilities,
+}
+
+
+
+#[derive(Serialize, Deserialize)]
+pub struct OsteoporosisResponse {
+    pub prediction_osteoporosis: OsteoporosisPredictionResponse,
 }
