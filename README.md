@@ -459,6 +459,13 @@ ml_models_api/           # Serviço Python para modelos de ML
 - **Nível de acesso**: Usuário Comum ou Administrador
 - **Descrição**: Analisa imagem e prediz possível tuberculose
 
+### 4. Predizer Osteoposoris
+- **URL**: `/api/prediction/predict_osteoporosis`
+- **Método**: POST
+- **Corpo da requisição**: Multipart form com imagem de raio-X da canela ou joelho
+- **Nível de acesso**: Usuário Comum ou Administrador
+- **Descrição**: Analisa imagem e prediz possível osteoposoris
+
 ### Informação e Auditoria
 
 #### 1. Obter Registros de Auditoria
