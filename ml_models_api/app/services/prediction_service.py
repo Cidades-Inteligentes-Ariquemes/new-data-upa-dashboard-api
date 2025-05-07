@@ -2,7 +2,7 @@ import numpy as np
 from PIL import Image, UnidentifiedImageError, ImageDraw, ImageFont
 import os
 import io
-from ..models.model import load_model, load_model_breast_cancer_with_fatRCNN, load_model_tuberculosis
+from ..models.model import load_model, load_model_breast_cancer_with_fatRCNN, load_model_tuberculosis, load_model_osteoporosis
 from ..utils.common.load_file import load_file_to_dictionary
 from fastapi import HTTPException
 import cv2
@@ -19,6 +19,7 @@ class PredictionService:
         self.model = load_model()
         self.model_breast_cancer_faster_rcnn = load_model_breast_cancer_with_fatRCNN(self.device)
         self.model_tb = load_model_tuberculosis(self.device)
+        self.model_osteoporosis = load_model_osteoporosis(self.device)
 
     async def predict_image(self, image_data: bytes):
         try:
@@ -269,6 +270,77 @@ class PredictionService:
             raise HTTPException(status_code=400, detail="Imagem inválida ou corrompida.")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+    
+
+    async def predict_osteoporosis(self, image_data: bytes):
+        """
+        Predicts if an image contains signs of osteoporosis and classifies it as Normal, Osteopenia or Osteoporosis.
+        
+        Args:
+            image_data: bytes of the image to be analyzed
+            
+        Returns:
+            dict: Dictionary with the predicted class and probabilities
+        """
+        try:
+            
+            # Carrega a imagem a partir dos bytes
+            image = Image.open(io.BytesIO(image_data)).convert("RGB")
+
+            # Define as transformações para pre-processamento
+            transform = T.Compose([
+                T.Resize((224,224)),
+                T.ToTensor(),
+                T.Normalize(mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225])
+            ])
+
+            # Prepara a imagem para o modelo
+            img_tensor = transform(image).unsqueeze(0).to(self.device)
+
+            # Roda o modelo
+            with torch.no_grad():
+                logits = self.model_osteoporosis(img_tensor)
+                probs = F.softmax(logits, dim=1)
+                _, pred_idx = torch.max(logits, dim=1)
+
+            # Mapeia o índice da classe para o nome da classe
+            classes = ["normal", "osteopenia", "osteoporosis"]
+            pred_class = classes[pred_idx.item()]
+
+            # Extrai as probabilidades para cada classe
+            prob_normal = probs[0,0].item() * 100
+            prob_osteopenia = probs[0,1].item() * 100
+            prob_osteoporosis = probs[0,2].item() * 100
+
+            
+            result = {
+                "class_pred": pred_class,
+                "probabilities": {
+                    "normal": round(prob_normal, 2),
+                    "osteopenia": round(prob_osteopenia, 2),
+                    "osteoporosis": round(prob_osteoporosis, 2)
+                }
+            }
+            return result
+
+        except UnidentifiedImageError:
+            raise HTTPException(
+                status_code=400, 
+                detail={
+                    "message": "Invalid or corrupted image.",
+                    "status_code": 400
+                }
+            )
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, 
+                detail={
+                    "message": f"Internal error: {str(e)}",
+                    "status_code": 500
+                }
+            )
 
 
 

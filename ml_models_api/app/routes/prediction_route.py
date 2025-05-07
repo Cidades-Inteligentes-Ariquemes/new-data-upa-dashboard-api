@@ -16,3 +16,7 @@ async def detect_breast_cancer(file: UploadFile = File(...)):
 @router.post("/predict_tb")
 async def predict_tb(file: UploadFile = File(...)):
     return await prediction_controller.handle_prediction_tuberculosis(file)
+
+@router.post("/osteoporosis")
+async def predict_osteoporosis(file: UploadFile = File(...)):
+    return await prediction_controller.handle_prediction_osteoporosis(file)

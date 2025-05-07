@@ -76,3 +76,69 @@ def load_model_tuberculosis(device):
     model.load_state_dict(state_dict)
     model.eval()
     return model
+
+class OsteoporosisModel(nn.Module):
+    """
+    Neural network model for osteoporosis detection based on ResNet50.
+    """
+    def __init__(self):
+        super().__init__()
+        # Load ResNet50 with ImageNet weights
+        self.resnet = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+
+        # Freeze the initial layers
+        ct = 0
+        for child in self.resnet.children():
+            ct += 1
+            if ct < 7:
+                for param in child.parameters():
+                    param.requires_grad = False
+
+        # Modify the last FC layer for 3-class classification
+        num_ftrs = self.resnet.fc.in_features
+        self.resnet.fc = nn.Sequential(
+            nn.Linear(num_ftrs, 128),
+            nn.BatchNorm1d(128),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(128, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(32, 3)  # 3 classes: Normal, Osteopenia, Osteoporosis
+        )
+
+    def forward(self, x):
+        # Return raw logits
+        return self.resnet(x)
+
+
+def load_model_osteoporosis(device):
+    """
+    Loads the model for osteoporosis detection.
+    
+    Args:
+        device: Device (CPU/GPU) for model execution
+        
+    Returns:
+        torch.nn.Module: Osteoporosis model loaded with trained weights
+    """
+    try:
+        
+        # Instantiate the model
+        model = OsteoporosisModel().to(device)
+        
+        # Load trained weights
+        state_dict = torch.load("app/models/best_model_osteoporosis.pth", map_location=device)
+        model.load_state_dict(state_dict)
+        
+        # Set the model to evaluation mode
+        model.eval()
+        
+        return model
+    except Exception as e:
+        raise RuntimeError(f"Failed to load osteoporosis model: {str(e)}")

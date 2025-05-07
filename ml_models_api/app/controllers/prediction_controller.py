@@ -36,3 +36,14 @@ class PredictionController:
         return {
             "prediction_tb": result
         }
+    
+
+    async def handle_prediction_osteoporosis(self, file: UploadFile):
+        image_data = await file.read()
+
+        result = await self.prediction_service.predict_osteoporosis(image_data)
+        print(f'RESULT============================================: {result}')
+        return {
+            "prediction_osteoporosis": result
+        }
+            
