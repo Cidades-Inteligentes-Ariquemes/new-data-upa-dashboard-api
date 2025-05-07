@@ -5,4 +5,5 @@ pub mod machine_information;
 pub mod data_upa;
 pub mod prediction;
 pub mod information;
+pub mod swagger;
 

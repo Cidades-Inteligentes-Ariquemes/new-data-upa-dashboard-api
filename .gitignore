@@ -8,6 +8,7 @@ ml_models_api/app/models/best_breast_cancer.pt
 ml_models_api/app/models/best.pt
 ml_models_api/app/models/faster_rcnn_model.pth
 ml_models_api/app/models/best_model-18-01-2025.pth
+ml_models_api/app/models/best_model_osteoporosis.pth
 __pycache__
 *.pyc
 ml_models_api/app/controllers/__pycache__/prediction_controller.cpython-311.pyc

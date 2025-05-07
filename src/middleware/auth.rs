@@ -58,19 +58,24 @@ where
         // Carrega as variaveis de ambiente
         let config = req.app_data::<actix_web::web::Data<Config>>().unwrap();
 
-        // Verifica a api key
-        let api_key_header = req.headers().get("api_key");
+        // Verifica se é a rota do Swagger que não precisa de api_key
+        if req.path().starts_with("/api/swagger") {
+            // Se for a rota do Swagger, permite acesso sem api_key
+        } else {
+            // Verifica a api key para todas as outras rotas
+            let api_key_header = req.headers().get("api_key");
 
-        match api_key_header {
-            Some(api_key_header) => {
-                if api_key_header.to_str().unwrap() != config.api_key {
-                    return Box::pin(err(ErrorUnauthorized("wrong api_key")));
+            match api_key_header {
+                Some(api_key_header) => {
+                    if api_key_header.to_str().unwrap() != config.api_key {
+                        return Box::pin(err(ErrorUnauthorized("wrong api_key")));
+                    }
+                },
+                None => {
+                    return Box::pin(async move { Err(ErrorUnauthorized("empty api_key")) });
                 }
-            },
-            None => {
-                return Box::pin(async move { Err(ErrorUnauthorized("empty api_key")) });
-            }
-        };
+            };
+        }
 
         // Primeiro verifica se é rota pública
         if is_public_route(&req.path()) {

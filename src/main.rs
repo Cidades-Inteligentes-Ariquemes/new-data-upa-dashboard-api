@@ -28,7 +28,8 @@ use new_data_upa_dashboard_api::{
    }, middleware::{
        audit::AuditMiddleware, auth::AuthMiddleware, logging::LoggingMiddleware
    }, 
-   routes::config::routes::configure_routes, utils::config_env::Config
+   routes::config::routes::configure_routes, 
+   utils::config_env::Config
 };
 extern crate partitions;
 

@@ -1,0 +1,2631 @@
+openapi: 3.0.3
+info:
+  title: "UPA Dashboard API"
+  description: "API for UPA Dashboard with data visualization, predictive analytics, and user management"
+  version: "1.0.0"
+  contact:
+    name: "UPA Dashboard Team"
+
+servers:
+  - url: "/api"
+    description: "API Base URL"
+
+tags:
+  - name: "Authentication"
+    description: "Authentication operations"
+  - name: "Users"
+    description: "User management operations"
+  - name: "Data"
+    description: "Data visualization and management"
+  - name: "Prediction"
+    description: "ML-based prediction services"
+  - name: "Information"
+    description: "System information and audits"
+  - name: "Machine Information"
+    description: "System metrics and machine information"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT token authentication"
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: api_key
+      description: "API key authentication"
+  
+  schemas:
+    # User related schemas
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "User unique identifier"
+        full_name:
+          type: string
+          description: "User's full name"
+        email:
+          type: string
+          format: email
+          description: "User's email address"
+        profile:
+          type: string
+          enum: ["Administrador", "Usuario Comum"]
+          description: "User profile type"
+        allowed_applications:
+          type: array
+          items:
+            type: string
+            enum: ["xpredict", "upavision"]
+          description: "Applications the user has access to"
+        allowed_health_units:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: "Health units the user has access to"
+        enabled:
+          type: boolean
+          description: "Whether the user account is active"
+    
+    CreateUserDto:
+      type: object
+      required:
+        - full_name
+        - email
+        - password
+        - profile
+        - allowed_applications
+      properties:
+        full_name:
+          type: string
+          description: "User's full name"
+        email:
+          type: string
+          format: email
+          description: "User's email address"
+        password:
+          type: string
+          format: password
+          description: "User's password"
+        profile:
+          type: string
+          enum: ["Administrador", "Usuario Comum"]
+          description: "User profile type"
+        allowed_applications:
+          type: array
+          items:
+            type: string
+            enum: ["xpredict", "upavision"]
+          description: "Applications the user has access to"
+        allowed_health_units:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: "Health units the user has access to"
+    
+    UpdateUserDto:
+      type: object
+      properties:
+        full_name:
+          type: string
+          description: "User's full name"
+        email:
+          type: string
+          format: email
+          description: "User's email address"
+        profile:
+          type: string
+          enum: ["Administrador", "Usuario Comum"]
+          description: "User profile type"
+        allowed_applications:
+          type: array
+          items:
+            type: string
+            enum: ["xpredict", "upavision"]
+          description: "Applications the user has access to"
+        allowed_health_units:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: "Health units the user has access to"
+    
+    UpdatePasswordByAdminDto:
+      type: object
+      required:
+        - email
+        - new_password
+      properties:
+        email:
+          type: string
+          format: email
+          description: "User's email address"
+        new_password:
+          type: string
+          format: password
+          description: "New password for the user"
+    
+    UpdatePasswordByUserCommonDto:
+      type: object
+      required:
+        - current_password
+        - new_password
+      properties:
+        current_password:
+          type: string
+          format: password
+          description: "User's current password"
+        new_password:
+          type: string
+          format: password
+          description: "New password for the user"
+    
+    UpdateEnabledUserDto:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: "Whether the user account is active"
+    
+    # Authentication related schemas
+    LoginDto:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: "User's email address"
+        password:
+          type: string
+          format: password
+          description: "User's password"
+    
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: "JWT authentication token"
+        user_id:
+          type: string
+          format: uuid
+          description: "User unique identifier"
+        full_name:
+          type: string
+          description: "User's full name"
+        email:
+          type: string
+          format: email
+          description: "User's email address"
+        profile:
+          type: string
+          enum: ["Administrador", "Usuario Comum"]
+          description: "User profile type"
+        allowed_applications:
+          type: array
+          items:
+            type: string
+            enum: ["xpredict", "upavision"]
+          description: "Applications the user has access to"
+        allowed_health_units:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: "Health units the user has access to"
+    
+    UserLoginPronto:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: "Username for Pronto system"
+        password:
+          type: string
+          format: password
+          description: "Password for Pronto system"
+    
+    # Verification code related schemas
+    IdVerificationDto:
+      type: object
+      required:
+        - id_verification
+      properties:
+        id_verification:
+          type: string
+          format: uuid
+          description: "Verification ID"
+    
+    ConfirmVerificationCodeDto:
+      type: object
+      required:
+        - verification_code
+        - id_verification
+      properties:
+        verification_code:
+          type: string
+          description: "Verification code sent to email"
+        id_verification:
+          type: string
+          format: uuid
+          description: "Verification ID"
+    
+    UpdatePasswordForgettingUserDto:
+      type: object
+      required:
+        - new_password
+        - id_verification
+      properties:
+        new_password:
+          type: string
+          format: password
+          description: "New password for the user"
+        id_verification:
+          type: string
+          format: uuid
+          description: "Verification ID"
+    
+    # Health unit and application related schemas
+    AddApplicationDto:
+      type: object
+      required:
+        - applications_name
+      properties:
+        applications_name:
+          type: array
+          items:
+            type: string
+            enum: ["xpredict", "upavision"]
+          description: "Applications to add to user"
+    
+    AddHealthUnitDto:
+      type: object
+      required:
+        - health_units
+      properties:
+        health_units:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: "Health units to add to user"
+    
+    # Feedback related schemas
+    CreateFeedbackRespiratoryDiseasesDto:
+      type: object
+      required:
+        - user_name
+        - feedback
+        - prediction_made
+        - correct_prediction
+      properties:
+        user_name:
+          type: string
+          description: "User name"
+        feedback:
+          type: string
+          description: "Feedback text"
+        prediction_made:
+          type: string
+          enum: ["normal", "covid-19", "pneumonia viral", "pneumonia bacteriana"]
+          description: "Prediction that was made"
+        correct_prediction:
+          type: string
+          enum: ["normal", "covid-19", "pneumonia viral", "pneumonia bacteriana"]
+          description: "Correct prediction"
+    
+    FeedbackRespiratoryDiseasesResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "Feedback ID"
+        user_name:
+          type: string
+          description: "User name"
+        feedback:
+          type: string
+          description: "Feedback text"
+        prediction_made:
+          type: string
+          enum: ["normal", "covid-19", "pneumonia viral", "pneumonia bacteriana"]
+          description: "Prediction that was made"
+        correct_prediction:
+          type: string
+          enum: ["normal", "covid-19", "pneumonia viral", "pneumonia bacteriana"]
+          description: "Correct prediction"
+    
+    CreateFeedbackTuberculosisDto:
+      type: object
+      required:
+        - user_name
+        - feedback
+      properties:
+        user_name:
+          type: string
+          description: "User name"
+        feedback:
+          type: string
+          description: "Feedback text"
+    
+    FeedbackTuberculosisResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "Feedback ID"
+        user_name:
+          type: string
+          description: "User name"
+        feedback:
+          type: string
+          description: "Feedback text"
+    
+    # Prediction related schemas
+    PredictionResponse:
+      type: object
+      properties:
+        prediction:
+          type: object
+          additionalProperties:
+            type: number
+            format: float
+          description: "Map of prediction classes and probabilities"
+    
+    DetectionResult:
+      type: object
+      properties:
+        class_id:
+          type: integer
+          description: "Class ID of detection"
+        confidence:
+          type: number
+          format: float
+          description: "Confidence score"
+        bbox:
+          type: array
+          items:
+            type: integer
+          minItems: 4
+          maxItems: 4
+          description: "Bounding box coordinates [x, y, width, height]"
+    
+    DetectionResponse:
+      type: object
+      properties:
+        detections:
+          type: array
+          items:
+            $ref: "#/components/schemas/DetectionResult"
+          description: "List of detection results"
+        image:
+          type: string
+          format: byte
+          description: "Encoded image with detections"
+    
+    TuberculosisProbabilities:
+      type: object
+      properties:
+        negative:
+          type: number
+          format: float
+          description: "Probability of negative TB"
+        positive:
+          type: number
+          format: float
+          description: "Probability of positive TB"
+    
+    TuberculosisPredictionResponse:
+      type: object
+      properties:
+        class_pred:
+          type: string
+          description: "Predicted class"
+        probabilities:
+          $ref: "#/components/schemas/TuberculosisProbabilities"
+          description: "Probabilities for each class"
+    
+    TBResponse:
+      type: object
+      properties:
+        prediction_tb:
+          $ref: "#/components/schemas/TuberculosisPredictionResponse"
+          description: "TB prediction response"
+    
+    # System metrics related schemas
+    CpuInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "CPU name"
+        architecture:
+          type: string
+          description: "CPU architecture"
+        physical_cores:
+          type: integer
+          format: int32
+          description: "Number of physical cores"
+        logical_cores:
+          type: integer
+          format: int32
+          description: "Number of logical cores"
+        percent:
+          type: number
+          format: float
+          description: "CPU usage percentage"
+        temperature:
+          type: string
+          description: "CPU temperature"
+    
+    MemoryInfo:
+      type: object
+      properties:
+        total_gb:
+          type: number
+          format: double
+          description: "Total memory in GB"
+        available_gb:
+          type: number
+          format: double
+          description: "Available memory in GB"
+        used_gb:
+          type: number
+          format: double
+          description: "Used memory in GB"
+        percent:
+          type: number
+          format: double
+          description: "Memory usage percentage"
+        free_percent:
+          type: number
+          format: double
+          description: "Free memory percentage"
+    
+    DiskInfo:
+      type: object
+      properties:
+        total_gb:
+          type: number
+          format: double
+          description: "Total disk space in GB"
+        used_gb:
+          type: number
+          format: double
+          description: "Used disk space in GB"
+        free_gb:
+          type: number
+          format: double
+          description: "Free disk space in GB"
+        percent:
+          type: number
+          format: double
+          description: "Disk usage percentage"
+        free_percent:
+          type: number
+          format: double
+          description: "Free disk space percentage"
+    
+    SystemMetrics:
+      type: object
+      properties:
+        cpu:
+          $ref: "#/components/schemas/CpuInfo"
+          description: "CPU information"
+        memory:
+          $ref: "#/components/schemas/MemoryInfo"
+          description: "Memory information"
+        disk:
+          $ref: "#/components/schemas/DiskInfo"
+          description: "Disk information"
+    
+    # Audit related schemas
+    Audit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "Audit ID"
+        user_email:
+          type: string
+          format: email
+          description: "User email"
+        user_profile:
+          type: string
+          description: "User profile"
+        method:
+          type: string
+          description: "HTTP method"
+        path:
+          type: string
+          description: "Request path"
+        ip:
+          type: string
+          description: "IP address"
+        date_of_request:
+          type: string
+          format: date
+          description: "Date of request"
+        hour_of_request:
+          type: string
+          format: time
+          description: "Time of request"
+    
+    Pagination:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          format: int32
+          description: "Current page number"
+        total_pages:
+          type: integer
+          format: int32
+          description: "Total number of pages"
+        total_records:
+          type: integer
+          format: int64
+          description: "Total number of records"
+        records_per_page:
+          type: integer
+          format: int32
+          description: "Records per page"
+    
+    AuditResponse:
+      type: object
+      properties:
+        audits:
+          type: array
+          items:
+            $ref: "#/components/schemas/Audit"
+          description: "List of audit entries"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+          description: "Pagination information"
+    
+    # Data visualization related schemas
+    AppointmentsPerMonthResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: integer
+                format: int32
+                description: "Month number"
+              count:
+                type: integer
+                format: int64
+                description: "Number of appointments"
+          description: "Appointments per month data"
+    
+    AppointmentsPerYearResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: integer
+                format: int32
+                description: "Month number"
+              count:
+                type: integer
+                format: int64
+                description: "Number of appointments"
+          description: "Appointments per year data"
+    
+    AppointmentsPerFlowResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              flow:
+                type: string
+                description: "Flow name"
+              count:
+                type: integer
+                format: int64
+                description: "Number of appointments"
+          description: "Appointments per flow data"
+    
+    PatientAgeDistributionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              age_group:
+                type: string
+                description: "Age group"
+              count:
+                type: integer
+                format: int64
+                description: "Number of patients"
+          description: "Patient age distribution data"
+    
+    CallsPerDayOfWeekResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              day_of_week:
+                type: string
+                description: "Day of week"
+              count:
+                type: integer
+                format: int64
+                description: "Number of calls"
+          description: "Calls per day of week data"
+    
+    ServicesByHourResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              hour_group:
+                type: string
+                description: "Hour group"
+              count:
+                type: integer
+                format: int64
+                description: "Number of services"
+          description: "Services by hour data"
+    
+    VisitsPerNurseResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              nurse:
+                type: string
+                description: "Nurse name"
+              count:
+                type: integer
+                format: int64
+                description: "Number of visits"
+          description: "Visits per nurse data"
+    
+    VisitsPerDoctorResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              doctor:
+                type: string
+                description: "Doctor name"
+              count:
+                type: integer
+                format: int64
+                description: "Number of visits"
+          description: "Visits per doctor data"
+    
+    AverageTimePerDoctorResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              doctor:
+                type: string
+                description: "Doctor name"
+              average_time:
+                type: number
+                format: float
+                description: "Average time in minutes"
+          description: "Average time per doctor data"
+    
+    HeatMapResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+                description: "Category (disease or neighborhood)"
+              count:
+                type: integer
+                format: int64
+                description: "Count"
+              latitude:
+                type: number
+                format: double
+                description: "Latitude"
+              longitude:
+                type: number
+                format: double
+                description: "Longitude"
+          description: "Heat map data"
+    
+    HealthUnitsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+                description: "Health unit ID"
+              name:
+                type: string
+                description: "Health unit name"
+          description: "Available health units"
+    
+    # Error responses
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: "Error message"
+        status:
+          type: integer
+          format: int32
+          description: "HTTP status code"
+
+# Endpoints
+paths:
+  # Authentication endpoints
+  /auth/login:
+    post:
+      tags:
+        - "Authentication"
+      summary: "User login"
+      description: "Authenticate user with email and password"
+      operationId: "login"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginDto"
+      responses:
+        "200":
+          description: "Successful authentication"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: "Invalid credentials or request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+
+  /auth/login-pronto:
+    post:
+      tags:
+        - "Authentication"
+      summary: "Pronto system login"
+      description: "Authenticate user with Pronto system credentials"
+      operationId: "loginPronto"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserLoginPronto"
+      responses:
+        "200":
+          description: "Successful authentication"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: "Invalid credentials or request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+
+  # User management endpoints
+  /users:
+    get:
+      tags:
+        - "Users"
+      summary: "Get all users"
+      description: "Get a list of all users (admin only)"
+      operationId: "getUsers"
+      responses:
+        "200":
+          description: "List of users"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+    
+    post:
+      tags:
+        - "Users"
+      summary: "Create user"
+      description: "Create a new user (admin only)"
+      operationId: "createUser"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserDto"
+      responses:
+        "201":
+          description: "User created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/{id}:
+    get:
+      tags:
+        - "Users"
+      summary: "Get user by ID"
+      description: "Get user details by ID (admin only)"
+      operationId: "getUserById"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "User details"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+    
+    put:
+      tags:
+        - "Users"
+      summary: "Update user"
+      description: "Update user details (admin only)"
+      operationId: "updateUser"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserDto"
+      responses:
+        "200":
+          description: "User updated successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+    
+    delete:
+      tags:
+        - "Users"
+      summary: "Delete user"
+      description: "Delete a user (admin only)"
+      operationId: "deleteUser"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: "User deleted successfully"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/{id}/update-password-by-admin:
+    patch:
+      tags:
+        - "Users"
+      summary: "Update user password by admin"
+      description: "Update a user's password (admin only)"
+      operationId: "updatePasswordByAdmin"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePasswordByAdminDto"
+      responses:
+        "200":
+          description: "Password updated successfully"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/{id}/update-password-by-user-common:
+    patch:
+      tags:
+        - "Users"
+      summary: "Update user password"
+      description: "Update own password (any authenticated user)"
+      operationId: "updatePasswordByUserCommon"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePasswordByUserCommonDto"
+      responses:
+        "200":
+          description: "Password updated successfully"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/{id}/update-enabled:
+    patch:
+      tags:
+        - "Users"
+      summary: "Enable/disable user"
+      description: "Enable or disable a user account (admin only)"
+      operationId: "updateEnabledUser"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEnabledUserDto"
+      responses:
+        "200":
+          description: "User enabled status updated successfully"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/{id}/applications:
+    post:
+      tags:
+        - "Users"
+      summary: "Add applications to user"
+      description: "Add applications to a user (admin only)"
+      operationId: "addApplicationsToUser"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddApplicationDto"
+      responses:
+        "200":
+          description: "Applications added successfully"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/{id}/application/{application_name}:
+    delete:
+      tags:
+        - "Users"
+      summary: "Remove application from user"
+      description: "Remove an application from a user (admin only)"
+      operationId: "removeApplicationFromUser"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "application_name"
+          in: "path"
+          description: "Application name"
+          required: true
+          schema:
+            type: string
+            enum: ["xpredict", "upavision"]
+      responses:
+        "204":
+          description: "Application removed successfully"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or application not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/{id}/health-units:
+    post:
+      tags:
+        - "Users"
+      summary: "Add health units to user"
+      description: "Add health units to a user (admin only)"
+      operationId: "addHealthUnitsToUser"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddHealthUnitDto"
+      responses:
+        "200":
+          description: "Health units added successfully"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/{id}/health-unit/{health_unit_id}:
+    delete:
+      tags:
+        - "Users"
+      summary: "Remove health unit from user"
+      description: "Remove a health unit from a user (admin only)"
+      operationId: "removeHealthUnitFromUser"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "health_unit_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: "Health unit removed successfully"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/send-verification-code/{email}:
+    post:
+      tags:
+        - "Users"
+      summary: "Send verification code"
+      description: "Send a verification code to user's email for password reset"
+      operationId: "sendVerificationCode"
+      parameters:
+        - name: "email"
+          in: "path"
+          description: "User email"
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        "200":
+          description: "Verification code sent successfully"
+        "400":
+          description: "Invalid email"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+
+  /users/resend-verification-code/{email}:
+    post:
+      tags:
+        - "Users"
+      summary: "Resend verification code"
+      description: "Resend a verification code to user's email"
+      operationId: "resendVerificationCode"
+      parameters:
+        - name: "email"
+          in: "path"
+          description: "User email"
+          required: true
+          schema:
+            type: string
+            format: email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdVerificationDto"
+      responses:
+        "200":
+          description: "Verification code resent successfully"
+        "400":
+          description: "Invalid email or verification ID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or verification not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+
+  /users/confirm-verification-code:
+    post:
+      tags:
+        - "Users"
+      summary: "Confirm verification code"
+      description: "Confirm a verification code for password reset"
+      operationId: "confirmVerificationCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmVerificationCodeDto"
+      responses:
+        "200":
+          description: "Verification code confirmed successfully"
+        "400":
+          description: "Invalid verification code or ID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "Verification not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+
+  /users/update-password-for-forgetting-user/{id}:
+    patch:
+      tags:
+        - "Users"
+      summary: "Reset forgotten password"
+      description: "Reset password for a user who has forgotten it"
+      operationId: "updatePasswordForForgettingUser"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePasswordForgettingUserDto"
+      responses:
+        "200":
+          description: "Password reset successfully"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or verification not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+
+  /users/feedback-respiratory-diseases:
+    post:
+      tags:
+        - "Users"
+      summary: "Submit respiratory disease feedback"
+      description: "Submit feedback for respiratory disease prediction"
+      operationId: "createFeedbackRespiratoryDiseases"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFeedbackRespiratoryDiseasesDto"
+      responses:
+        "201":
+          description: "Feedback submitted successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackRespiratoryDiseasesResponse"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/feedback-tuberculosis:
+    post:
+      tags:
+        - "Users"
+      summary: "Submit tuberculosis feedback"
+      description: "Submit feedback for tuberculosis prediction"
+      operationId: "createFeedbackTuberculosis"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFeedbackTuberculosisDto"
+      responses:
+        "201":
+          description: "Feedback submitted successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackTuberculosisResponse"
+        "400":
+          description: "Invalid request data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /users/feedbacks:
+    get:
+      tags:
+        - "Users"
+      summary: "Get all feedbacks"
+      description: "Get a list of all feedbacks (admin only)"
+      operationId: "getFeedbacks"
+      responses:
+        "200":
+          description: "List of feedbacks"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  oneOf:
+                    - $ref: "#/components/schemas/FeedbackRespiratoryDiseasesResponse"
+                    - $ref: "#/components/schemas/FeedbackTuberculosisResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  # Machine information endpoints
+  /machine-information:
+    get:
+      tags:
+        - "Machine Information"
+      summary: "Get machine information"
+      description: "Get system metrics and machine information (admin only)"
+      operationId: "getMachineInformation"
+      responses:
+        "200":
+          description: "Machine information"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemMetrics"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  # Data visualization endpoints
+  /data/add-file:
+    post:
+      tags:
+        - "Data"
+      summary: "Upload data file"
+      description: "Upload a data file for processing (admin only)"
+      operationId: "addFile"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "Data file to upload"
+      responses:
+        "200":
+          description: "File uploaded successfully"
+        "400":
+          description: "Invalid file"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/update-graph-data:
+    get:
+      tags:
+        - "Data"
+      summary: "Update graph data"
+      description: "Update graph data for visualizations (admin only)"
+      operationId: "updateGraphData"
+      responses:
+        "200":
+          description: "Graph data updated successfully"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/available-health-units:
+    get:
+      tags:
+        - "Data"
+      summary: "Get available health units"
+      description: "Get a list of available health units"
+      operationId: "getAvailableHealthUnits"
+      responses:
+        "200":
+          description: "List of available health units"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthUnitsResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/number-of-appointments-per-month:
+    get:
+      tags:
+        - "Data"
+      summary: "Get appointments per month"
+      description: "Get number of appointments per month for a health unit"
+      operationId: "getAppointmentsPerMonth"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Appointments per month data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentsPerMonthResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/number-of-appointments-per-year/{year}:
+    get:
+      tags:
+        - "Data"
+      summary: "Get appointments for a year"
+      description: "Get number of appointments for a specific year"
+      operationId: "getAppointmentsPerYear"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: "year"
+          in: "path"
+          description: "Year"
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: "Appointments per year data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentsPerYearResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User, health unit, or data not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/years-available-for-number-of-appointments-per-month:
+    get:
+      tags:
+        - "Data"
+      summary: "Get available years"
+      description: "Get years available for appointment data"
+      operationId: "getYearsAvailableForAppointments"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Available years"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+                  format: int32
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/number-of-appointments-per-flow:
+    get:
+      tags:
+        - "Data"
+      summary: "Get appointments per flow"
+      description: "Get number of appointments per flow"
+      operationId: "getAppointmentsPerFlow"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Appointments per flow data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentsPerFlowResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/distribuition-of-patients-ages:
+    get:
+      tags:
+        - "Data"
+      summary: "Get patient age distribution"
+      description: "Get distribution of patient ages"
+      operationId: "getPatientAgeDistribution"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Patient age distribution data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientAgeDistributionResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/number-of-calls-per-day-of-the-week:
+    get:
+      tags:
+        - "Data"
+      summary: "Get calls per day of week"
+      description: "Get number of calls per day of week"
+      operationId: "getCallsPerDayOfWeek"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Calls per day of week data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallsPerDayOfWeekResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/distribution-of-services-by-hour-group:
+    get:
+      tags:
+        - "Data"
+      summary: "Get services by hour"
+      description: "Get distribution of services by hour group"
+      operationId: "getServicesByHour"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Services by hour data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServicesByHourResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/number-of-visits-per-nurse:
+    get:
+      tags:
+        - "Data"
+      summary: "Get visits per nurse"
+      description: "Get number of visits per nurse"
+      operationId: "getVisitsPerNurse"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Visits per nurse data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitsPerNurseResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/number-of-visits-per-doctor:
+    get:
+      tags:
+        - "Data"
+      summary: "Get visits per doctor"
+      description: "Get number of visits per doctor"
+      operationId: "getVisitsPerDoctor"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Visits per doctor data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitsPerDoctorResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/average-time-in-minutes-per-doctor:
+    get:
+      tags:
+        - "Data"
+      summary: "Get average time per doctor"
+      description: "Get average time in minutes per doctor"
+      operationId: "getAverageTimePerDoctor"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Average time per doctor data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AverageTimePerDoctorResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/heat-map-with-disease-indication:
+    get:
+      tags:
+        - "Data"
+      summary: "Get disease heatmap"
+      description: "Get heat map with disease indication"
+      operationId: "getDiseaseHeatmap"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Disease heatmap data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeatMapResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /data/user/{user_id}/unit/{unidade_id}/heat-map-with-the-number-of-medical-appointments-by-neighborhood:
+    get:
+      tags:
+        - "Data"
+      summary: "Get appointments by neighborhood"
+      description: "Get heat map with appointments by neighborhood"
+      operationId: "getAppointmentsByNeighborhoodHeatmap"
+      parameters:
+        - name: "user_id"
+          in: "path"
+          description: "User ID"
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: "unidade_id"
+          in: "path"
+          description: "Health unit ID"
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: "Appointments by neighborhood heatmap data"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeatMapResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "User or health unit not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  # Prediction endpoints
+  /prediction/predict:
+    post:
+      tags:
+        - "Prediction"
+      summary: "Predict respiratory disease"
+      description: "Predict respiratory disease from X-ray image"
+      operationId: "predictRespiratoryDisease"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "X-ray image file"
+      responses:
+        "200":
+          description: "Prediction results"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionResponse"
+        "400":
+          description: "Invalid file"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /prediction/detect:
+    post:
+      tags:
+        - "Prediction"
+      summary: "Detect breast cancer"
+      description: "Detect breast cancer from mammogram image"
+      operationId: "detectBreastCancer"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "Mammogram image file"
+      responses:
+        "200":
+          description: "Detection results"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetectionResponse"
+        "400":
+          description: "Invalid file"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /prediction/predict_tb:
+    post:
+      tags:
+        - "Prediction"
+      summary: "Predict tuberculosis"
+      description: "Predict tuberculosis from X-ray image"
+      operationId: "predictTuberculosis"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "X-ray image file"
+      responses:
+        "200":
+          description: "Tuberculosis prediction results"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TBResponse"
+        "400":
+          description: "Invalid file"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  # Information endpoints
+  /information/audits/audit-filters:
+    get:
+      tags:
+        - "Information"
+      summary: "Get audit filters"
+      description: "Get available audit filter data (admin only)"
+      operationId: "getAuditFilters"
+      responses:
+        "200":
+          description: "Audit filter data"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_emails:
+                    type: array
+                    items:
+                      type: string
+                    description: "List of user emails"
+                  user_profiles:
+                    type: array
+                    items:
+                      type: string
+                    description: "List of user profiles"
+                  methods:
+                    type: array
+                    items:
+                      type: string
+                    description: "List of HTTP methods"
+                  paths:
+                    type: array
+                    items:
+                      type: string
+                    description: "List of request paths"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+  /information/audits/{page}:
+    get:
+      tags:
+        - "Information"
+      summary: "Get audit information"
+      description: "Get paginated audit information (admin only)"
+      operationId: "getAudits"
+      parameters:
+        - name: "page"
+          in: "path"
+          description: "Page number"
+          required: true
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+        - name: "user_email"
+          in: "query"
+          description: "Filter by user email"
+          required: false
+          schema:
+            type: string
+        - name: "user_profile"
+          in: "query"
+          description: "Filter by user profile"
+          required: false
+          schema:
+            type: string
+        - name: "method"
+          in: "query"
+          description: "Filter by HTTP method"
+          required: false
+          schema:
+            type: string
+        - name: "path"
+          in: "query"
+          description: "Filter by request path"
+          required: false
+          schema:
+            type: string
+        - name: "start_date"
+          in: "query"
+          description: "Filter by start date (YYYY-MM-DD)"
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: "end_date"
+          in: "query"
+          description: "Filter by end date (YYYY-MM-DD)"
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: "Audit information"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - Admin access required"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security:
+        - apiKeyAuth: []
+        - bearerAuth: []
+
+security:
+  - apiKeyAuth: []
+  - bearerAuth: []

@@ -89,3 +89,5 @@ ndarray = { version = "0.15.6", features = ["serde"] }  # Você já tem esta bib
 anyhow = "1.0.79"          # Para gerenciamento de erros mais ergonômico
 
 partitions = "0.2"
+
+# Swagger documentation dependencies

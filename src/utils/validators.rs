@@ -82,6 +82,7 @@ pub fn is_public_route(path: &str) -> bool {
         "/api/users/resend-verification-code/",
         "/api/users/confirm-verification-code",
         "/api/users/update-password-for-forgetting-user",
+        "/api/swagger", // Adiciona a rota do Swagger como pública
     ];
 
     public_routes.iter().any(|route| path.starts_with(route))
