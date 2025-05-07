@@ -13,51 +13,51 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .route(web::get().to(update_graph_data_handler::update_graph_data))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/number-of-appointments-per-month")
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-appointments-per-month")
                     .route(web::get().to(visualization_data_handler::number_of_appointments_per_month))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/number-of-appointments-per-year/{year}")
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-appointments-per-year/{year}")
                     .route(web::get().to(visualization_data_handler::number_of_appointments_per_year))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/years-available-for-number-of-appointments-per-month")
+                web::resource("/user/{user_id}/unit/{unit_id}/years-available-for-number-of-appointments-per-month")
                     .route(web::get().to(visualization_data_handler::years_available_for_number_of_appointments_per_month))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/number-of-appointments-per-flow")
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-appointments-per-flow")
                     .route(web::get().to(visualization_data_handler::number_of_appointments_per_flow))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/distribuition-of-patients-ages")
+                web::resource("/user/{user_id}/unit/{unit_id}/distribuition-of-patients-ages")
                     .route(web::get().to(visualization_data_handler::distribuition_of_patients_ages))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/number-of-calls-per-day-of-the-week")
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-calls-per-day-of-the-week")
                     .route(web::get().to(visualization_data_handler::number_of_calls_per_day_of_the_week))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/distribution-of-services-by-hour-group")
+                web::resource("/user/{user_id}/unit/{unit_id}/distribution-of-services-by-hour-group")
                     .route(web::get().to(visualization_data_handler::distribution_of_services_by_hour_group))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/number-of-visits-per-nurse")
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-visits-per-nurse")
                     .route(web::get().to(visualization_data_handler::number_of_visits_per_nurse))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/number-of-visits-per-doctor")
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-visits-per-doctor")
                     .route(web::get().to(visualization_data_handler::number_of_visits_per_doctor))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/average-time-in-minutes-per-doctor")
+                web::resource("/user/{user_id}/unit/{unit_id}/average-time-in-minutes-per-doctor")
                     .route(web::get().to(visualization_data_handler::average_time_in_minutes_per_doctor))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/heat-map-with-disease-indication")
+                web::resource("/user/{user_id}/unit/{unit_id}/heat-map-with-disease-indication")
                     .route(web::get().to(visualization_data_handler::heat_map_with_disease_indication))
             )
             .service(
-                web::resource("/user/{user_id}/unit/{unidade_id}/heat-map-with-the-number-of-medical-appointments-by-neighborhood")
+                web::resource("/user/{user_id}/unit/{unit_id}/heat-map-with-the-number-of-medical-appointments-by-neighborhood")
                     .route(web::get().to(visualization_data_handler::heat_map_with_the_number_of_medical_appointments_by_neighborhood))
             )
             .service(
