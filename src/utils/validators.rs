@@ -82,32 +82,41 @@ pub fn is_public_route(path: &str) -> bool {
         "/api/users/resend-verification-code/",
         "/api/users/confirm-verification-code",
         "/api/users/update-password-for-forgetting-user",
-        "/api/swagger", // Adiciona a rota do Swagger como pública
+        "/api/swagger",
     ];
 
     public_routes.iter().any(|route| path.starts_with(route))
 }
 
 pub fn routes_for_users_common(path: &str) -> bool {
-    let routes_common = [
+    // Rotas estáticas que usuários comuns podem acessar
+    let static_routes = [
         "/api/users/feedback-respiratory-diseases",
         "/api/users/feedback-tuberculosis",
         "/api/users/update-password-by-user-common",
         "/api/prediction/predict",
         "/api/prediction/predict_tb",
         "/api/prediction/detect",
-        "/api/data/number-of-appointments-per-month",
-        "/api/data/number-of-appointments-per-flow",
-        "/api/data/distribuition-of-patients-ages",
-        "/api/data/number-of-calls-per-day-of-the-week",
-        "/api/data/distribution-of-services-by-hour-group",
-        "/api/data/number-of-visits-per-nurse",
-        "/api/data/number-of-visits-per-doctor",
-        "/api/data/average-time-in-minutes-per-doctor",
-        "/api/data/heat-map-with-disease-indications",
-        "/api/data/heat-map-with-the-number-of-medical-appointments-by-neighborhood"
+        "/api/data/available-health-units",
     ];
 
-    routes_common.iter().any(|route| path.starts_with(route))
+    // Endpoints dinâmicos (parte final da URL) que usuários comuns podem acessar
+    let dynamic_endpoints = [
+        "number-of-appointments-per-month",
+        "number-of-appointments-per-year",
+        "years-available-for-number-of-appointments-per-month",
+        "number-of-appointments-per-flow",
+        "distribuition-of-patients-ages",
+        "number-of-calls-per-day-of-the-week",
+        "distribution-of-services-by-hour-group",
+        "number-of-visits-per-nurse",
+        "number-of-visits-per-doctor",
+        "average-time-in-minutes-per-doctor",
+        "heat-map-with-disease-indication",
+        "heat-map-with-the-number-of-medical-appointments-by-neighborhood"
+    ];
 
+    // Verifica rotas estáticas OU rotas dinâmicas de usuário
+    static_routes.iter().any(|route| path == *route) ||
+    (path.starts_with("/api/data/user/") && dynamic_endpoints.iter().any(|endpoint| path.contains(endpoint)))
 }
