@@ -32,7 +32,6 @@ impl UserRepository for PgUserRepository {
                 allowed_health_units as "allowed_health_units!: Vec<i64>",
                 enabled
             FROM users_api
-            WHERE enabled = true
             ORDER BY full_name
             "#
         )
