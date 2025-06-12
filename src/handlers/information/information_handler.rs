@@ -25,3 +25,10 @@ pub async fn get_available_data(
     debug!("Acessando endpoint get_available_data");
     service.get_available_data().await
 }
+
+pub async fn get_all_audits(
+    service: web::Data<InformationService<web::Data<crate::infrastructure::repositories::audit_repository::PgAuditRepository>>>,
+) -> Result<HttpResponse, AppError> {
+    debug!("Acessando endpoint get_all_audits");
+    service.get_all_audits().await
+}
