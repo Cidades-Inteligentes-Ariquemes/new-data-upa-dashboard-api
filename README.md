@@ -468,7 +468,7 @@ ml_models_api/           # Serviço Python para modelos de ML
 
 ### Informação e Auditoria
 
-#### 1. Obter Registros de Auditoria
+#### 1. Obter Registros de Auditoria por página
 - **URL**: `/api/information/audits/{page}`
 - **Método**: GET
 - **Parâmetros de rota**: `page` (número da página)
@@ -484,6 +484,12 @@ ml_models_api/           # Serviço Python para modelos de ML
 - **Método**: GET
 - **Nível de acesso**: Administrador
 - **Descrição**: Retorna opções de filtros disponíveis para auditoria
+
+### 3. Obter todos os Registros de Auditoria
+- **URL**: `/api/information/audits`
+- **Método**: GET
+- **Nível de acesso**: Administrador
+- **Descrição**: Retorna todos os registros de auditoria
 
 ### Informações da Máquina
 
