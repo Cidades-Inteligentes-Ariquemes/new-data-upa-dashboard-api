@@ -120,6 +120,21 @@ impl DataRepository for PgDataRepository {
             .map(|s| format!("'{}'", s))
             .collect::<Vec<String>>()
             .join(", ");
+
+        // Verifica se a tabela existe
+        let table_exists_query = format!(
+            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)"
+        );
+
+        let table_exists: bool = sqlx::query_scalar(&table_exists_query)
+            .bind(table)
+            .fetch_one(&self.pool)
+            .await?;
+
+        if !table_exists {
+            println!("Table {} does not exist.", table);
+            return Ok(false);
+        }
             
         // Construindo a query
         let query = format!(
@@ -136,25 +151,27 @@ impl DataRepository for PgDataRepository {
         Ok(result.is_some())
     }
 
+   
     async fn create_table_if_not_exists(&self, df: &DataFrame, table: &str) -> Result<bool, Box<dyn Error + Send + Sync>> {
         // Verifica se a tabela existe
-        let query = format!(
-            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name='{}');",
-            table
-        );
+        let query = "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)";
         
-        let row = sqlx::query(&query)
+        let table_exists = sqlx::query_scalar::<_, bool>(query)
+            .bind(table)
             .fetch_one(&self.pool)
             .await?;
-            
-        let table_exists: bool = row.get(0);
         
         if !table_exists {
             // Constrói o comando SQL para criar a tabela
             let mut sql_command = format!("CREATE TABLE {} (", table);
             
-            // Itera sobre as colunas do DataFrame
+            // Itera sobre as colunas do DataFrame, filtrando nomes vazios
             for (name, dtype) in df.schema().iter() {
+                // Pula colunas com nomes vazios ou inválidos
+                if name.is_empty() || name.trim().is_empty() {
+                    continue;
+                }
+                
                 let postgres_type = match dtype {
                     polars::prelude::DataType::Int32 => "INTEGER",
                     polars::prelude::DataType::Int64 => "BIGINT",
@@ -165,17 +182,31 @@ impl DataRepository for PgDataRepository {
                     _ => "VARCHAR",
                 };
                 
-                sql_command.push_str(&format!("{} {},", name, postgres_type));
+                // Sanitiza o nome da coluna (remove caracteres especiais se necessário)
+                let clean_name = name.trim().replace(" ", "_").replace("-", "_");
+                sql_command.push_str(&format!("{} {}, ", clean_name, postgres_type));
             }
             
-            // Remove a vírgula final e fecha o parêntese
-            sql_command = sql_command.trim_end_matches(',').to_string();
+            // Verifica se há pelo menos uma coluna válida
+            if sql_command.ends_with("(") {
+                return Err("Nenhuma coluna válida encontrada no DataFrame".into());
+            }
+            
+            // Remove a vírgula e espaço finais e fecha o parêntese
+            sql_command = sql_command.trim_end_matches(", ").to_string();
             sql_command.push_str(");");
+            
+            // Debug: mostra o SQL que será executado
+            println!("SQL para criar tabela: {}", sql_command);
             
             // Executa o comando para criar a tabela
             sqlx::query(&sql_command)
                 .execute(&self.pool)
-                .await?;
+                .await
+                .map_err(|e| {
+                    eprintln!("Erro ao criar tabela {}: {}", table, e);
+                    e
+                })?;
                 
             println!("Tabela {} criada com sucesso!", table);
         } else {
@@ -472,6 +503,7 @@ impl DataRepository for PgDataRepository {
 
     async fn fetch_distinct_values(&self, table: &str, column: &str) 
         -> Result<Vec<i32>, Box<dyn Error + Send + Sync>> {
+        println!("Buscando valores distintos para {} em {}", column, table);
         // Consulta SQL para buscar valores distintos
         let query = format!("SELECT DISTINCT {} FROM {}", column, table);
         
@@ -479,7 +511,7 @@ impl DataRepository for PgDataRepository {
         let rows = sqlx::query(&query)
             .fetch_all(&self.pool)
             .await?;
-        
+
         if rows.is_empty() {
             println!("Nenhum valor distinto encontrado para {} em {}", column, table);
             return Ok(Vec::new());
@@ -488,126 +520,29 @@ impl DataRepository for PgDataRepository {
         // Extrair os valores
         let mut values = Vec::new();
         for row in rows {
-            match row.try_get::<i32, _>(0) {
+        // Tenta primeiro como i32, depois como string
+        if let Ok(value) = row.try_get::<i32, _>(0) {
+            values.push(value);
+        } else if let Ok(value_str) = row.try_get::<String, _>(0) {
+            // Converte string para i32
+            match value_str.parse::<i32>() {
                 Ok(value) => values.push(value),
                 Err(_) => {
-                    println!("Erro ao extrair valor de {}", column);
+                    println!("Erro ao converter '{}' para i32", value_str);
                     continue;
                 }
             }
+        } else {
+            println!("Erro ao extrair valor de {}", column);
+            continue;
         }
+    }
         
         println!("Valores distintos para {} em {}: {:?}", column, table, values);
         Ok(values)
     }
 
-    // async fn fetch_columns_by_name_with_filter(
-    //     &self, 
-    //     table: &str, 
-    //     columns: &[String], 
-    //     filter_column: &str, 
-    //     filter_value: i32
-    // ) -> Result<HashMap<String, Vec<Value>>, Box<dyn Error + Send + Sync>> {
-    //     // Constrói a query com filtro
-    //     let query = format!(
-    //         "SELECT {} FROM {} WHERE {} = $1", 
-    //         columns.join(", "), 
-    //         table, 
-    //         filter_column
-    //     );
-    
-    //     // Executa a query
-    //     let rows = sqlx::query(&query)
-    //         .bind(filter_value)
-    //         .fetch_all(&self.pool)
-    //         .await?;
-    
-    //     if rows.is_empty() {
-    //         println!(
-    //             "Nenhum dado encontrado em {} para colunas {} com filtro {}={}", 
-    //             table, columns.join(", "), filter_column, filter_value
-    //         );
-    //         return Ok(HashMap::new());
-    //     }
-    
-    //     // Inicializar o resultado
-    //     let mut result: HashMap<String, Vec<Value>> = HashMap::new();
-    //     for col_name in columns {
-    //         result.insert(col_name.to_string(), Vec::new());
-    //     }
-    
-    //     // Para cada linha de resultado
-    //     for row in &rows {
-    //         // Para cada coluna na linha
-    //         for (i, column_name) in columns.iter().enumerate() {
-    //             // Tenta obter o valor baseado no tipo da coluna
-    //             let column = row.columns().get(i).unwrap();
-    //             let value: Value = match column.type_info().to_string().as_str() {
-    //                 "INT4" | "INT8" => {
-    //                     if let Ok(v) = row.try_get::<i64, _>(i) {
-    //                         json!(v)
-    //                     } else {
-    //                         Value::Null
-    //                     }
-    //                 },
-    //                 "FLOAT4" | "FLOAT8" => {
-    //                     if let Ok(v) = row.try_get::<f64, _>(i) {
-    //                         json!(v)
-    //                     } else {
-    //                         Value::Null
-    //                     }
-    //                 },
-    //                 "VARCHAR" | "TEXT" => {
-    //                     if let Ok(v) = row.try_get::<String, _>(i) {
-    //                         json!(v)
-    //                     } else {
-    //                         Value::Null
-    //                     }
-    //                 },
-    //                 "BOOL" => {
-    //                     if let Ok(v) = row.try_get::<bool, _>(i) {
-    //                         json!(v)
-    //                     } else {
-    //                         Value::Null
-    //                     }
-    //                 },
-    //                 "TIMESTAMP" | "TIMESTAMPTZ" => {
-    //                     if let Ok(v) = row.try_get::<chrono::DateTime<chrono::Utc>, _>(i) {
-    //                         json!(v.to_string())
-    //                     } else {
-    //                         Value::Null
-    //                     }
-    //                 },
-    //                 "DATE" => {
-    //                     if let Ok(v) = row.try_get::<chrono::NaiveDate, _>(i) {
-    //                         json!(v.to_string())
-    //                     } else {
-    //                         Value::Null
-    //                     }
-    //                 },
-    //                 _ => {
-    //                     // Para outros tipos, tenta obter como string
-    //                     if let Ok(v) = row.try_get::<String, _>(i) {
-    //                         json!(v)
-    //                     } else {
-    //                         Value::Null
-    //                     }
-    //                 }
-    //             };
-    
-    //             // Adiciona o valor ao vetor da coluna
-    //             if let Some(column_values) = result.get_mut(column_name) {
-    //                 column_values.push(value);
-    //             }
-    //         }
-    //     }
-    
-    //     println!(
-    //         "Buscou colunas {:?} da tabela {} com filtro {}={}", 
-    //         columns, table, filter_column, filter_value
-    //     );
-    //     Ok(result)
-    // }
+
 
     async fn fetch_columns_by_name_with_filter(
         &self, 
@@ -616,6 +551,7 @@ impl DataRepository for PgDataRepository {
         filter_column: &str, 
         filter_value: i32
     ) -> Result<HashMap<String, Vec<Value>>, Box<dyn Error + Send + Sync>> {
+        
         // Constrói a query com filtro
         let query = format!(
             "SELECT {} FROM {} WHERE {} = $1", 
