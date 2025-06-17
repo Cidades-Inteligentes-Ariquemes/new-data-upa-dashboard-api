@@ -18,7 +18,7 @@ impl SmtpEmailService {
         Self {
             client: reqwest::Client::new(),
             email_from: config.email.clone(),
-            api_url: String::from("https://simple-mail-compose-simple-mail.o3luz9.easypanel.host/send-email"),
+            api_url: String::from(config.simple_mail_url.clone()),
         }
     }
 }
