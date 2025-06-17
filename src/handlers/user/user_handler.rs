@@ -3,7 +3,19 @@ use uuid::Uuid;
 use crate::{
     application::user_service::UserService,
     domain::models::user::{
-        AddApplicationDto, AddHealthUnitDto, ApplicationPath, ConfirmVerificationCodeDto, CreateFeedbackRespiratoryDiseasesDto, CreateFeedbackTuberculosisDto, CreateUserDto, IdVerificationDto, UpdatePasswordByAdminDto, UpdatePasswordByUserCommonDto, UpdatePasswordForgettingUserDto, UpdateUserDto
+        AddApplicationDto, 
+        AddHealthUnitDto, 
+        ApplicationPath, 
+        ConfirmVerificationCodeDto, 
+        CreateFeedbackRespiratoryDiseasesDto, 
+        CreateFeedbackTuberculosisDto, 
+        CreateFeedbackOsteoporosisDto, 
+        CreateUserDto, 
+        IdVerificationDto, 
+        UpdatePasswordByAdminDto, 
+        UpdatePasswordByUserCommonDto, 
+        UpdatePasswordForgettingUserDto, 
+        UpdateUserDto
     },
     AppError,
 };
@@ -94,6 +106,13 @@ pub async fn create_feedback_tuberculosis(
     feedback: web::Json<CreateFeedbackTuberculosisDto>,
 ) -> Result<HttpResponse, AppError> {
     service.create_feedback_tuberculosis(feedback.into_inner()).await
+}
+
+pub async fn create_feedback_osteoporosis(
+    service: web::Data<UserService>,
+    feedback: web::Json<CreateFeedbackOsteoporosisDto>,
+) -> Result<HttpResponse, AppError> {
+    service.create_feedback_osteoporosis(feedback.into_inner()).await
 }
 
 pub async fn get_feedbacks(

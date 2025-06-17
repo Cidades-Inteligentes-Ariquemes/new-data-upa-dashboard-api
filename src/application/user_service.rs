@@ -1,7 +1,5 @@
-use std::collections::HashMap;
 use actix_web::{web, HttpResponse};
 use log::{error, info};
-use serde_json::json;
 use uuid::Uuid;
 
 use crate::adapters::password::PasswordEncryptorPort;
@@ -13,8 +11,8 @@ use crate::domain::{
         AddApplicationDto,
         CreateFeedbackRespiratoryDiseasesDto,
         CreateFeedbackTuberculosisDto,
+        CreateFeedbackOsteoporosisDto,
         CreateUserDto,
-        DiseaseStats,
         FeedbackRespiratoryDiseasesResponse,
         UpdateEnabledUserDto,
         UpdatePasswordByAdminDto,
@@ -37,6 +35,7 @@ use crate::infrastructure::{
     },
 };
 
+use crate::utils::validators::validate_feedbacks_osteoporosis;
 use crate::utils::{
     config_env::Config,
     response::ApiResponse,
@@ -46,8 +45,14 @@ use crate::utils::{
         validate_feedbacks,
         validate_profile,
         validate_respiratory_diseases,
-        ALLOWED_RESPIRATORY_DISEASES,
     },
+};
+
+use crate::utils::feedbacks_processing::{
+    process_tuberculosis_stats, 
+    process_respiratory_stats, 
+    process_osteoporosis_stats, 
+    build_final_response,
 };
 
 use crate::AppError;
@@ -538,70 +543,75 @@ impl UserService {
         }
     }
 
-    pub async fn get_feedbacks(&self) -> Result<HttpResponse, AppError> {
-        match self.repo.find_all_feedbacks_respiratory_diseases().await {
-            Ok(feedbacks) => {
-                let responses: Vec<FeedbackRespiratoryDiseasesResponse> = feedbacks.into_iter()
-                    .map(FeedbackRespiratoryDiseasesResponse::from)
-                    .collect();
+    pub async fn create_feedback_osteoporosis(&self, feedback: CreateFeedbackOsteoporosisDto) -> Result<HttpResponse, AppError> {
+        // Validações de campos vazios
+        let validations = [
+            ("user_name", feedback.user_name.is_empty()),
+            ("feedback", feedback.feedback.is_empty()),
+            ("prediction_made", feedback.prediction_made.is_empty()),
+            ("correct_prediction", feedback.correct_prediction.is_empty()),
+        ];
 
-                if responses.is_empty() {
-                    Ok(ApiResponse::<Vec<FeedbackRespiratoryDiseasesResponse>>::feedbacks_not_found().into_response())
-                } else {
-                    let feedbacks_tuberculosis = self.repo.find_all_feedbacks_tuberculosis().await.unwrap();
+        for (field_name, is_empty) in validations {
+            if is_empty {
+                return Err(AppError::BadRequest(
+                    format!("Error creating feedback: {} cannot be empty", field_name)
+                ));
+            }
+        }
+         // Validaçao de feedback permitido
+        validate_feedbacks(&feedback.feedback)?;
+        // Validação de feedbacks permitidos
+        validate_feedbacks_osteoporosis(&[feedback.prediction_made.clone(), feedback.correct_prediction.clone()])?;
 
-                    if feedbacks_tuberculosis.is_empty() {
-                        Ok(ApiResponse::<Vec<FeedbackRespiratoryDiseasesResponse>>::feedbacks_not_found().into_response())
-                    } else {
-                        // Processa feedbacks de tuberculose
-                        let total_tuberculosis = feedbacks_tuberculosis.len();
-                        let total_correct_tuberculosis = feedbacks_tuberculosis
-                            .iter()
-                            .filter(|f| f.feedback.to_lowercase() == "sim")
-                            .count();
-
-                        // Inicializa contadores para doenças respiratórias
-                        let mut stats = HashMap::new();
-                        for disease in ALLOWED_RESPIRATORY_DISEASES {
-                            stats.insert(disease, DiseaseStats {
-                                total_quantity: 0,
-                                total_quantity_correct: 0,
-                            });
-                        }
-
-                        // Processa cada feedback de doenças respiratórias
-                        for feedback in responses {
-                            if let Some(stat) = stats.get_mut(feedback.prediction_made.as_str()) {
-                                stat.total_quantity += 1;
-                                if feedback.feedback.to_lowercase() == "sim" {
-                                    stat.total_quantity_correct += 1;
-                                }
-                            }
-                        }
-
-                        // Monta a resposta final
-                        let final_response = json!({
-                        "feedbacks_respiratory_diseases": {
-                            "normal": stats.get("normal").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
-                            "covid-19": stats.get("covid-19").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
-                            "pneumonia viral": stats.get("pneumonia viral").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
-                            "pneumonia bacteriana": stats.get("pneumonia bacteriana").unwrap_or(&DiseaseStats { total_quantity: 0, total_quantity_correct: 0 }),
-                        },
-                        "feedbacks_tuberculosis": {
-                            "total_quantity": total_tuberculosis,
-                            "total_quantity_correct": total_correct_tuberculosis
-                        }
-                    });
-
-                        Ok(ApiResponse::success(final_response).into_response())
-                    }
-                }
-            },
+        match self.repo.create_feedback_osteoporosis(feedback).await {
+            Ok(feedback) => Ok(ApiResponse::created(feedback).into_response()),
             Err(e) => {
-                error!("Error fetching feedbacks: {:?}", e);
+                error!("Error creating feedback: {:?}", e);
                 Err(AppError::InternalServerError)
             }
         }
+    }
+
+
+    pub async fn get_feedbacks(&self) -> Result<HttpResponse, AppError> {
+        // Busca todos os feedbacks necessários em paralelo
+        let (respiratory_result, tuberculosis_result, osteoporosis_result) = tokio::join!(
+            self.repo.find_all_feedbacks_respiratory_diseases(),
+            self.repo.find_all_feedbacks_tuberculosis(),
+            self.repo.find_all_feedbacks_osteoporosis()
+        );
+
+        // Processa os resultados e trata erros
+        let respiratory_feedbacks = respiratory_result.map_err(|e| {
+            error!("Error fetching respiratory feedbacks: {:?}", e);
+            AppError::InternalServerError
+        })?;
+
+        let tuberculosis_feedbacks = tuberculosis_result.map_err(|e| {
+            error!("Error fetching tuberculosis feedbacks: {:?}", e);
+            AppError::InternalServerError
+        })?;
+
+        let osteoporosis_feedbacks = osteoporosis_result.map_err(|e| {
+            error!("Error fetching osteoporosis feedbacks: {:?}", e);
+            AppError::InternalServerError
+        })?;
+
+        // Verifica se há dados suficientes
+        if respiratory_feedbacks.is_empty() || tuberculosis_feedbacks.is_empty() || osteoporosis_feedbacks.is_empty() {
+            return Ok(ApiResponse::<Vec<FeedbackRespiratoryDiseasesResponse>>::feedbacks_not_found().into_response());
+        }
+
+        // Processa estatísticas usando as funções do módulo utils
+        let tuberculosis_stats = process_tuberculosis_stats(&tuberculosis_feedbacks);
+        let respiratory_stats = process_respiratory_stats(&respiratory_feedbacks);
+        let osteoporosis_stats = process_osteoporosis_stats(&osteoporosis_feedbacks);
+
+        // Monta a resposta final
+        let final_response = build_final_response(respiratory_stats, tuberculosis_stats, osteoporosis_stats);
+
+        Ok(ApiResponse::success(final_response).into_response())
     }
 
     pub async fn send_verification_code(&self, email: String) -> Result<HttpResponse, AppError> {

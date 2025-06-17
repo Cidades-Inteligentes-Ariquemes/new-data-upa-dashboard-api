@@ -33,6 +33,10 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .route(web::post().to(user_handler::create_feedback_tuberculosis))
             )
             .service(
+                web::resource("/feedback-osteoporosis")
+                    .route(web::post().to(user_handler::create_feedback_osteoporosis))
+            )
+            .service(
                 web::resource("/feedbacks")
                     .route(web::get().to(user_handler::get_feedbacks))
             )

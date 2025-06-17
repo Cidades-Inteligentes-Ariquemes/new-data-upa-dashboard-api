@@ -17,6 +17,7 @@ pub const ALLOWED_PROFILES: [&str; 2] = ["Administrador", "Usuario Comum"];
 pub const ALLOWED_APPS: [&str; 2] = ["xpredict", "upavision"];
 pub const ALLOWED_RESPIRATORY_DISEASES: [&str; 4] = ["normal", "covid-19", "pneumonia viral", "pneumonia bacteriana"];
 pub const ALLOWED_FEEDBACKS:[&str; 2] = ["sim", "não"];
+pub const ALLOWED_FEEDBACKS_OSTEOPOROSIS: [&str; 3] = ["osteopenia", "osteoporosis", "normal"];
 
 pub fn validate_profile(profile: &str) -> Result<(), AppError> {
     if !ALLOWED_PROFILES.contains(&profile) {
@@ -74,6 +75,22 @@ pub fn validate_feedbacks(feedback: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+pub fn validate_feedbacks_osteoporosis(feedback: &[String; 2]) -> Result<(), AppError> {
+    for feedback in feedback {
+        // Verifica se o feedback está entre os permitidos
+        if !ALLOWED_FEEDBACKS_OSTEOPOROSIS.contains(&feedback.as_str()) {
+            return Err(AppError::BadRequest(
+                format!(
+                    "Error: '{}' is not a valid feedback for osteoporosis. Allowed values are: {}",
+                    feedback,
+                    ALLOWED_FEEDBACKS_OSTEOPOROSIS.join(", ")
+                )
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub fn is_public_route(path: &str) -> bool {
     let public_routes = [
         "/api/auth/login",
@@ -97,6 +114,7 @@ pub fn routes_for_users_common(path: &str) -> bool {
         "/api/prediction/predict",
         "/api/prediction/predict_tb",
         "/api/prediction/detect",
+        "/api/prediction/predict_osteoporosis",
         "/api/data/available-health-units",
     ];
 

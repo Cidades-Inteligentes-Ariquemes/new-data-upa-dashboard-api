@@ -1,5 +1,20 @@
 use crate::domain::models::user::{
-    AddApplicationDto, AddHealthUnitDto, AddVerificationCodeDto, AddVerificationCodeResponse, CreateFeedbackRespiratoryDiseasesDto, CreateFeedbackTuberculosisDto, CreateUserDto, FeedbackRespiratoryDiseasesResponse, FeedbackTuberculosisResponse, UpdateEnabledUserDto, UpdateUserDto, UpdateVerificationCodeDto, User
+    AddApplicationDto, 
+    AddHealthUnitDto, 
+    AddVerificationCodeDto, 
+    AddVerificationCodeResponse, 
+    CreateFeedbackRespiratoryDiseasesDto,
+    CreateFeedbackOsteoporosisDto,
+    FeedbackRespiratoryDiseasesResponse, 
+    CreateFeedbackTuberculosisDto, 
+    CreateUserDto, 
+    //FeedbackRespiratoryDiseasesResponse, 
+    FeedbackTuberculosisResponse, 
+    FeedbackOsteoporosisResponse,
+    UpdateEnabledUserDto, 
+    UpdateUserDto, 
+    UpdateVerificationCodeDto, 
+    User
 };
 use crate::domain::repositories::user::UserRepository;
 use async_trait::async_trait;
@@ -74,6 +89,36 @@ impl UserRepository for PgUserRepository {
         Ok(feedbacks
             .into_iter()
             .map(|row| FeedbackRespiratoryDiseasesResponse {
+                id: row.id,
+                user_name: row.user_name,
+                feedback: row.feedback,
+                prediction_made: row.prediction_made,
+                correct_prediction: row.correct_prediction,
+            })
+            .collect())
+    }
+
+     async fn find_all_feedbacks_osteoporosis(
+        &self,
+    ) -> Result<Vec<FeedbackOsteoporosisResponse>, sqlx::Error> {
+        let feedbacks = sqlx::query!(
+            r#"
+            SELECT
+                id,
+                user_name,
+                feedback,
+                prediction_made,
+                correct_prediction
+            FROM feedbacks_osteoporosis
+            ORDER BY user_name
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(feedbacks
+            .into_iter()
+            .map(|row| FeedbackOsteoporosisResponse {
                 id: row.id,
                 user_name: row.user_name,
                 feedback: row.feedback,
@@ -416,6 +461,45 @@ impl UserRepository for PgUserRepository {
         .await?;
 
         Ok(Some(FeedbackRespiratoryDiseasesResponse {
+            id,
+            user_name: feedback.user_name,
+            feedback: feedback.feedback,
+            prediction_made: feedback.prediction_made,
+            correct_prediction: feedback.correct_prediction,
+        }))
+    }
+
+    async fn create_feedback_osteoporosis(
+        &self,
+        feedback: CreateFeedbackOsteoporosisDto,
+    ) -> Result<Option<FeedbackOsteoporosisResponse>, sqlx::Error> {
+        let id = Uuid::new_v4();
+        let created_at = chrono::Utc::now().naive_utc();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO feedbacks_osteoporosis (
+                id,
+                user_name,
+                feedback,
+                prediction_made,
+                correct_prediction,
+                created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id
+            "#,
+            id,
+            feedback.user_name,
+            feedback.feedback,
+            feedback.prediction_made,
+            feedback.correct_prediction,
+            created_at
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(Some(FeedbackOsteoporosisResponse {
             id,
             user_name: feedback.user_name,
             feedback: feedback.feedback,

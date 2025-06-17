@@ -90,19 +90,6 @@ pub struct FeedbackRespiratoryDiseasesResponse {
     pub correct_prediction: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreateFeedbackTuberculosisDto {
-    pub user_name: String,
-    pub feedback: String
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FeedbackTuberculosisResponse {
-    pub id: Uuid,
-    pub user_name: String,
-    pub feedback: String,
-}
-
 #[derive(Debug, Serialize)]
 pub struct DiseaseStats {
     pub total_quantity: i32,
@@ -115,6 +102,51 @@ pub struct ProcessedFeedbackResponse {
     pub covid_19: DiseaseStats,
     pub pneumonia_viral: DiseaseStats,
     pub pneumonia_bacteriana: DiseaseStats,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateFeedbackOsteoporosisDto {
+    pub user_name: String,
+    pub feedback: String,
+    pub prediction_made: String,
+    pub correct_prediction: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FeedbackOsteoporosisResponse {
+    pub id: Uuid,
+    pub user_name: String,
+    pub feedback: String,
+    pub prediction_made: String,
+    pub correct_prediction: String,
+}
+
+
+#[derive(Debug, Serialize)]
+pub struct OsteoporosisStats {
+    pub total_quantity: i32,
+    pub total_quantity_correct: i32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ProcessedFeedbackOsteoporosisResponse {
+    pub normal: OsteoporosisStats,
+    pub osteopenia: OsteoporosisStats,
+    pub osteoporosis: OsteoporosisStats,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateFeedbackTuberculosisDto {
+    pub user_name: String,
+    pub feedback: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FeedbackTuberculosisResponse {
+    pub id: Uuid,
+    pub user_name: String,
+    pub feedback: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
