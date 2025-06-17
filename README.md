@@ -258,13 +258,29 @@ ml_models_api/           # Serviço Python para modelos de ML
 - **Nível de acesso**: Usuário Comum ou Administrador
 - **Descrição**: Registra feedback sobre predição de tuberculose
 
-#### 13. Listar Feedbacks
+#### 13. Feedback de Osteoporosis
+- **URL**: `/api/users/feedback-osteoporosis`
+- **Método**: POST
+- **Corpo da requisição**:
+  ```json
+  {
+    "user_name": "João Silva",
+    "feedback": "sim", // Valores: "sim" ou "não"
+    "prediction_made": "osteopenia", // Valores: "normal", "osteopenia", "osteoporosis"
+    "correct_prediction": "osteopenia" // Valores: "normal", "osteopenia", "osteoporosis"
+  }
+  ```
+- **Nível de acesso**: Usuário Comum ou Administrador
+- **Descrição**: Registra feedback sobre predição osteoporosis.
+
+
+#### 14. Listar Feedbacks
 - **URL**: `/api/users/feedbacks`
 - **Método**: GET
 - **Nível de acesso**: Administrador
 - **Descrição**: Retorna todos os feedbacks registrados
 
-#### 14. Atualizar Senha (Administrador)
+#### 15. Atualizar Senha (Administrador)
 - **URL**: `/api/users/{id}/update-password-by-admin`
 - **Método**: PATCH
 - **Parâmetros de rota**: `id` (UUID do usuário)
@@ -278,7 +294,7 @@ ml_models_api/           # Serviço Python para modelos de ML
 - **Nível de acesso**: Administrador
 - **Descrição**: Permite administrador atualizar senha de qualquer usuário
 
-#### 15. Adicionar Aplicações
+#### 16. Adicionar Aplicações
 - **URL**: `/api/users/{id}/applications`
 - **Método**: POST
 - **Parâmetros de rota**: `id` (UUID do usuário)
@@ -291,14 +307,14 @@ ml_models_api/           # Serviço Python para modelos de ML
 - **Nível de acesso**: Administrador
 - **Descrição**: Adiciona aplicações ao usuário especificado
 
-#### 16. Remover Aplicação
+#### 17. Remover Aplicação
 - **URL**: `/api/users/{id}/application/{application_name}`
 - **Método**: DELETE
 - **Parâmetros de rota**: `id` (UUID do usuário), `application_name` (nome da aplicação)
 - **Nível de acesso**: Administrador
 - **Descrição**: Remove uma aplicação específica do usuário
 
-#### 17. Ativar/Desativar Usuário
+#### 18. Ativar/Desativar Usuário
 - **URL**: `/api/users/{id}/update-enabled`
 - **Método**: PATCH
 - **Parâmetros de rota**: `id` (UUID do usuário)
@@ -311,7 +327,7 @@ ml_models_api/           # Serviço Python para modelos de ML
 - **Nível de acesso**: Administrador
 - **Descrição**: Ativa ou desativa um usuário específico
 
-#### 18. Adicionar Unidades de Saúde
+#### 19. Adicionar Unidades de Saúde
 - **URL**: `/api/users/{id}/health-units`
 - **Método**: POST
 - **Parâmetros de rota**: `id` (UUID do usuário)
@@ -324,7 +340,7 @@ ml_models_api/           # Serviço Python para modelos de ML
 - **Nível de acesso**: Administrador
 - **Descrição**: Adiciona unidades de saúde permitidas ao usuário
 
-#### 19. Remover Unidade de Saúde
+#### 20. Remover Unidade de Saúde
 - **URL**: `/api/users/{id}/health-unit/{health_unit_id}`
 - **Método**: DELETE
 - **Parâmetros de rota**: `id` (UUID do usuário), `health_unit_id` (ID da unidade de saúde)
@@ -468,7 +484,7 @@ ml_models_api/           # Serviço Python para modelos de ML
 
 ### Informação e Auditoria
 
-#### 1. Obter Registros de Auditoria
+#### 1. Obter Registros de Auditoria por página
 - **URL**: `/api/information/audits/{page}`
 - **Método**: GET
 - **Parâmetros de rota**: `page` (número da página)
@@ -484,6 +500,12 @@ ml_models_api/           # Serviço Python para modelos de ML
 - **Método**: GET
 - **Nível de acesso**: Administrador
 - **Descrição**: Retorna opções de filtros disponíveis para auditoria
+
+### 3. Obter todos os Registros de Auditoria
+- **URL**: `/api/information/audits`
+- **Método**: GET
+- **Nível de acesso**: Administrador
+- **Descrição**: Retorna todos os registros de auditoria
 
 ### Informações da Máquina
 

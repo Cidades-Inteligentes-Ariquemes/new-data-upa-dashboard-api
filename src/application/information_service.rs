@@ -58,7 +58,6 @@ impl<R: AuditRepository> InformationService<R> {
 
         // Retornar resposta formatada usando ApiResponse
         Ok(ApiResponse::success(json!({
-            "message": "Audits found successfully",
             "audits": response.audits,
             "pagination": response.pagination,
         })).into_response())
@@ -76,7 +75,6 @@ impl<R: AuditRepository> InformationService<R> {
 
         // Retornar resposta formatada usando ApiResponse
         Ok(ApiResponse::success(json!({
-            "message": "Available data found successfully",
             "available_data": {
                 "user_email": available_data.user_email,
                 "path": available_data.path,
@@ -84,5 +82,25 @@ impl<R: AuditRepository> InformationService<R> {
                 "date_of_request": available_data.date_of_request
             }
         })).into_response())
+    }
+
+    pub async fn get_all_audits(&self) -> Result<HttpResponse, AppError> {
+        // Obter todos os registros de auditoria
+        let audits = match self.audit_repository.get_all_audits().await {
+            Ok(audits) => audits,
+            Err(err) => {
+                error!("Error retrieving all audits: {}", err);
+                return Err(AppError::InternalServerError);
+            }
+        };
+
+        // Verificar se foram encontrados registros
+        if audits.is_empty() {
+            info!("No audits found.");
+            return Err(AppError::NotFound("No audits found".into()));
+        }
+
+        // Retornar resposta formatada usando ApiResponse
+        Ok(ApiResponse::success(audits).into_response())
     }
 }

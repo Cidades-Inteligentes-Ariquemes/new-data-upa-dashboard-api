@@ -14,4 +14,5 @@ pub trait AuditRepository: Send + Sync + 'static {
     ) -> Result<(Vec<Audit>, i64), sqlx::Error>;
     
     async fn get_available_data(&self) -> Result<AvailableAuditData, sqlx::Error>;
+    async fn get_all_audits(&self) -> Result<Vec<Audit>, sqlx::Error>;
 }

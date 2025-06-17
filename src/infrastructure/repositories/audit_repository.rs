@@ -388,6 +388,20 @@ impl AuditRepository for PgAuditRepository {
             date_of_request: dates,
         })
     }
+
+    async fn get_all_audits(&self) -> Result<Vec<Audit>, sqlx::Error> {
+        let audits = sqlx::query_as!(Audit,
+            r#"
+            SELECT id, user_email, user_profile, method, path, ip, date_of_request, hour_of_request
+            FROM audit
+            ORDER BY date_of_request DESC, hour_of_request DESC
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        
+        Ok(audits)
+    }
 }
 
 #[async_trait]
@@ -408,5 +422,9 @@ impl AuditRepository for web::Data<PgAuditRepository> {
     
     async fn get_available_data(&self) -> Result<AvailableAuditData, sqlx::Error> {
         self.get_ref().get_available_data().await
+    }
+
+    async fn get_all_audits(&self) -> Result<Vec<Audit>, sqlx::Error> {
+        self.get_ref().get_all_audits().await
     }
 }

@@ -12,5 +12,9 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                 web::resource("/audits/{page}")
                     .route(web::get().to(information_handler::audits))
             )
+            .service(
+                web::resource("/audits")
+                    .route(web::get().to(information_handler::get_all_audits))
+            )
     );
 }

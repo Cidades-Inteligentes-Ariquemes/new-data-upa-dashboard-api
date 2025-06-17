@@ -71,7 +71,7 @@ ndarray-stats = "0.5.1"
 rust-stemmers = "1.2.0"
 stop-words = "0.7.2"
 tokenizers = "0.13.4"
-rand_xoshiro = "0.6.0"  
+rand_xoshiro = "0.6.0"
 tempfile = "3.19.1"
 actix-multipart = "0.7.2"
 
@@ -89,3 +89,5 @@ ndarray = { version = "0.15.6", features = ["serde"] }  # Você já tem esta bib
 anyhow = "1.0.79"          # Para gerenciamento de erros mais ergonômico
 
 partitions = "0.2"
+
+# Swagger documentation dependencies
