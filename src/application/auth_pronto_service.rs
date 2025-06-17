@@ -1,5 +1,6 @@
 use actix_web::{web, HttpResponse};
 use log::{error, info};
+use polars::prelude::PlIndexSet;
 
 use crate::{
     utils::error::AppError,
@@ -50,8 +51,10 @@ impl AuthProntoService {
         let mut units_id = Vec::new();
 
         for unit in &user {
-            units_id.push(unit.unit_id as i64);
+            units_id.push(unit.unit_id as i32);
         }
+
+        let units_id: PlIndexSet<i32> = units_id.into_iter().collect();
 
         // Busca os perfis do usuário
         let profiles = match self.repo.get_user_profiles_by_login_and_unit_id(&user[0].login_id, user[0].unit_id).await {
@@ -79,7 +82,7 @@ impl AuthProntoService {
                 String::from(""),  // Email vazio pois não está no banco Pronto
                 String::from("Usuario Comum"),
                 vec![String::from("xpredict")],
-                units_id.clone(),
+                units_id.iter().map(|&id| id as i64).collect::<Vec<i64>>(),
                 &self.config.jwt_secret,
             )
             .map_err(|e| {
@@ -95,7 +98,7 @@ impl AuthProntoService {
             full_name: user[0].fullname.clone(),
             profile: String::from("Usuario Comum"),
             allowed_applications: vec![String::from("xpredict")],
-            allowed_health_units: units_id,
+            allowed_health_units: units_id.iter().map(|&id| id as i64).collect(),
         };
 
         Ok(ApiResponse::success(response).into_response())
