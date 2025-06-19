@@ -21,8 +21,8 @@ pub struct DetectionResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct TuberculosisProbabilities {
-    pub negative: f32,
-    pub positive: f32,
+    pub negative: f64,
+    pub positive: f64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -41,9 +41,9 @@ pub struct TBResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct OsteoporosisProbabilities {
-    pub normal: f32,
-    pub osteopenia: f32,
-    pub osteoporosis: f32,
+    pub normal: f64,
+    pub osteopenia: f64,
+    pub osteoporosis: f64,
 }
 
 #[derive(Serialize, Deserialize)]
