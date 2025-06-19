@@ -42,7 +42,6 @@ class PredictionController:
         image_data = await file.read()
 
         result = await self.prediction_service.predict_osteoporosis(image_data)
-        print(f'RESULT============================================: {result}')
         return {
             "prediction_osteoporosis": result
         }
