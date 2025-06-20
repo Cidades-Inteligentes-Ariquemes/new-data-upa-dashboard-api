@@ -1,5 +1,5 @@
 use sysinfo::System;
-use std::time::{SystemTime, Duration};
+use std::time::Duration;
 use std::thread;
 use reqwest;
 use crate::domain::models::machine_information::{
@@ -42,7 +42,7 @@ impl SystemMetrics {
             architecture: std::env::consts::ARCH.to_string(),
             physical_cores: num_cpus::get_physical(),
             logical_cores: num_cpus::get(),
-            percent: Self::round_two(cpu.cpu_usage() as f64) as f32,
+            percent: Self::round_two(cpu.cpu_usage() as f64),
             temperature: Self::get_cpu_temperature(),
         }
     }
@@ -101,9 +101,8 @@ impl SystemMetrics {
     }
 
     pub fn calculate_uptime() -> u64 {
-        match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-            Ok(duration) => duration.as_secs() * 1000,
-            Err(_) => 0,
-        }
+        let mut sys = System::new_all();
+        sys.refresh_all();
+        sysinfo::System::uptime() * 1000
     }
 }

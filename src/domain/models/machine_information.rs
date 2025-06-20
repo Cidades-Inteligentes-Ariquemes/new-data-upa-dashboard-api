@@ -7,7 +7,7 @@ pub struct CpuInfo {
     pub architecture: String,
     pub physical_cores: usize,
     pub logical_cores: usize,
-    pub percent: f32,
+    pub percent: f64,
     pub temperature: String,
 }
 
