@@ -83,6 +83,14 @@ ml_models_api/           # Serviço Python para modelos de ML
   - Modelos de predição para doenças respiratórias e tuberculose
   - Modelo de detecção para câncer de mama
 
+## Autenticação e Segurança
+
+Para utilizar esta API, é necessário enviar a `api_key` em **todas** as requisições, utilizando o header `api_key`.
+
+Além disso, para rotas que exigem autenticação, também é obrigatório enviar o token de acesso (JWT) no header `Authorization` no formato `Bearer <token>`.
+
+> **Observação:** As rotas de login e recuperação de senha **não** exigem o envio do token, apenas da `api_key`.
+
 ## Endpoints API
 
 ### Autenticação
