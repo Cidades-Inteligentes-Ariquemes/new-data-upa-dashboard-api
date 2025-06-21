@@ -1150,12 +1150,12 @@ Para recuperar a senha, o usuário deve seguir este fluxo sequencial:
     "status": 200,
     "data": [
       {
-        "id": 2,
-        "name": "UPA ARIQUEMES"
+        "ifrounidadeid": 2,
+        "ifrounidadenome": "UPA ARIQUEMES"
       },
       {
-        "id": 3,
-        "name": "UPA JARU"
+        "ifrounidadeid": 3,
+        "ifrounidadenome": "UPA JARU"
       }
     ]
   }
