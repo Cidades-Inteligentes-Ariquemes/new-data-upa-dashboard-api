@@ -43,7 +43,7 @@ class TuberculosisModel(nn.Module):
                 for param in child.parameters():
                     param.requires_grad = False
 
-        # Alterar a última FC (igual ao seu treino)
+        # Altera a última FC (igual ao treino)
         num_ftrs = self.resnet.fc.in_features
         self.resnet.fc = nn.Sequential(
             nn.Linear(num_ftrs, 128),
@@ -67,10 +67,6 @@ class TuberculosisModel(nn.Module):
 
 
 def load_model_tuberculosis(device):
-    """
-    Carrega pesos do modelo de tuberculose (best_model.pth).
-    Retorna o modelo pronto para inferência.
-    """
     model = TuberculosisModel().to(device)
     state_dict = torch.load("app/models/best_model-18-01-2025.pth", map_location=device)
     model.load_state_dict(state_dict)
@@ -78,15 +74,12 @@ def load_model_tuberculosis(device):
     return model
 
 class OsteoporosisModel(nn.Module):
-    """
-    Neural network model for osteoporosis detection based on ResNet50.
-    """
     def __init__(self):
         super().__init__()
-        # Load ResNet50 with ImageNet weights
+        # Carrega ResNet50 com pesos da ImageNet
         self.resnet = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
 
-        # Freeze the initial layers
+        # Congela as camadas iniciais
         ct = 0
         for child in self.resnet.children():
             ct += 1
@@ -94,7 +87,7 @@ class OsteoporosisModel(nn.Module):
                 for param in child.parameters():
                     param.requires_grad = False
 
-        # Modify the last FC layer for 3-class classification
+        # Modifica a última camada FC para classificação de 3 classes
         num_ftrs = self.resnet.fc.in_features
         self.resnet.fc = nn.Sequential(
             nn.Linear(num_ftrs, 128),
@@ -109,34 +102,21 @@ class OsteoporosisModel(nn.Module):
             nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.Dropout(0.3),
-            nn.Linear(32, 3)  # 3 classes: Normal, Osteopenia, Osteoporosis
+            nn.Linear(32, 3)
         )
 
     def forward(self, x):
-        # Return raw logits
         return self.resnet(x)
 
 
 def load_model_osteoporosis(device):
-    """
-    Loads the model for osteoporosis detection.
-    
-    Args:
-        device: Device (CPU/GPU) for model execution
-        
-    Returns:
-        torch.nn.Module: Osteoporosis model loaded with trained weights
-    """
     try:
         
-        # Instantiate the model
         model = OsteoporosisModel().to(device)
         
-        # Load trained weights
         state_dict = torch.load("app/models/best_model_osteoporosis.pth", map_location=device)
         model.load_state_dict(state_dict)
         
-        # Set the model to evaluation mode
         model.eval()
         
         return model

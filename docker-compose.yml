@@ -5,16 +5,16 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: your_database_name
-      POSTGRES_USER: your_username
-      POSTGRES_PASSWORD: your_password
+      POSTGRES_DB: dados_upa_db
+      POSTGRES_USER: diogo_rust
+      POSTGRES_PASSWORD: procint94023
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backup-dados-upa.sql:/docker-entrypoint-initdb.d/backup-dados-upa.sql
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U your_username -d your_database_name"]
+      test: ["CMD-SHELL", "pg_isready -U diogo_rust -d dados_upa_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -38,10 +38,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
     environment:
-      DATABASE_URL: postgresql://your_username:your_password@db:5432/your_database_name
+      DATABASE_URL: postgresql://diogo_rust:procint94023@db:5432/dados_upa_db
       ML_API_URL: http://ml_api:8000
     ports:
       - '8080:8080'

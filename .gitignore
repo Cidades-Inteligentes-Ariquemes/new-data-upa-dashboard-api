@@ -13,3 +13,4 @@ __pycache__
 *.pyc
 ml_models_api/app/controllers/__pycache__/prediction_controller.cpython-311.pyc
 __init__.py
+backup-dados-upa.zip

@@ -76,7 +76,7 @@ class PredictionService:
             # Prepara a imagem para o modelo
             transform = ToTensor()
             img_tensor = transform(image).to(self.device)
-
+            
             # Realiza a predição
             with torch.no_grad():
                 prediction = self.model_breast_cancer_faster_rcnn([img_tensor])
@@ -228,10 +228,6 @@ class PredictionService:
                 ) from exc
 
     async def predict_tuberculosis_image(self, image_data: bytes):
-        """
-        Lê a imagem, aplica transform, roda o modelo de tuberculose
-        e retorna a classe predita e as probabilidades.
-        """
         try:
             
             image = Image.open(io.BytesIO(image_data)).convert("RGB")
@@ -273,18 +269,8 @@ class PredictionService:
     
 
     async def predict_osteoporosis(self, image_data: bytes):
-        """
-        Predicts if an image contains signs of osteoporosis and classifies it as Normal, Osteopenia or Osteoporosis.
-        
-        Args:
-            image_data: bytes of the image to be analyzed
-            
-        Returns:
-            dict: Dictionary with the predicted class and probabilities
-        """
         try:
             
-            # Carrega a imagem a partir dos bytes
             image = Image.open(io.BytesIO(image_data)).convert("RGB")
 
             # Define as transformações para pre-processamento
