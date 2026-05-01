@@ -1,6 +1,6 @@
 use std::env;
 
-#[derive(Clone)]  // Adiciona esta linha
+#[derive(Clone)] // Adiciona esta linha
 pub struct Config {
     pub database_url: String,
     pub ml_api_url: String,

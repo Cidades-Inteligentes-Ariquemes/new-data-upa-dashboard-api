@@ -2,7 +2,13 @@ use std::collections::HashMap;
 
 use serde_json::json;
 
-use crate::{domain::models::user::{DiseaseStats, FeedbackOsteoporosisResponse, FeedbackRespiratoryDiseasesResponse, FeedbackTuberculosisResponse, OsteoporosisStats}, utils::validators::{ALLOWED_FEEDBACKS_OSTEOPOROSIS, ALLOWED_RESPIRATORY_DISEASES}};
+use crate::{
+    domain::models::user::{
+        DiseaseStats, FeedbackOsteoporosisResponse, FeedbackRespiratoryDiseasesResponse,
+        FeedbackTuberculosisResponse, OsteoporosisStats,
+    },
+    utils::validators::{ALLOWED_FEEDBACKS_OSTEOPOROSIS, ALLOWED_RESPIRATORY_DISEASES},
+};
 
 // Função auxiliar para processar estatísticas de tuberculose
 pub fn process_tuberculosis_stats(feedbacks: &[FeedbackTuberculosisResponse]) -> TuberculosisStats {
@@ -19,15 +25,20 @@ pub fn process_tuberculosis_stats(feedbacks: &[FeedbackTuberculosisResponse]) ->
 }
 
 // Função auxiliar para processar estatísticas de doenças respiratórias
-pub fn process_respiratory_stats(feedbacks: &[FeedbackRespiratoryDiseasesResponse]) -> HashMap<&'static str, DiseaseStats> {
+pub fn process_respiratory_stats(
+    feedbacks: &[FeedbackRespiratoryDiseasesResponse],
+) -> HashMap<&'static str, DiseaseStats> {
     let mut stats = HashMap::new();
-    
+
     // Inicializa contadores
     for disease in ALLOWED_RESPIRATORY_DISEASES {
-        stats.insert(disease, DiseaseStats {
-            total_quantity: 0,
-            total_quantity_correct: 0,
-        });
+        stats.insert(
+            disease,
+            DiseaseStats {
+                total_quantity: 0,
+                total_quantity_correct: 0,
+            },
+        );
     }
 
     // Processa cada feedback
@@ -44,15 +55,20 @@ pub fn process_respiratory_stats(feedbacks: &[FeedbackRespiratoryDiseasesRespons
 }
 
 // Função auxiliar para processar estatísticas de osteoporose
-pub fn process_osteoporosis_stats(feedbacks: &[FeedbackOsteoporosisResponse]) -> HashMap<&'static str, OsteoporosisStats> {
+pub fn process_osteoporosis_stats(
+    feedbacks: &[FeedbackOsteoporosisResponse],
+) -> HashMap<&'static str, OsteoporosisStats> {
     let mut stats = HashMap::new();
-    
+
     // Inicializa contadores para cada tipo de predição
     for prediction_type in ALLOWED_FEEDBACKS_OSTEOPOROSIS {
-        stats.insert(prediction_type, OsteoporosisStats {
-            total_quantity: 0,
-            total_quantity_correct: 0,
-        });
+        stats.insert(
+            prediction_type,
+            OsteoporosisStats {
+                total_quantity: 0,
+                total_quantity_correct: 0,
+            },
+        );
     }
 
     // Processa cada feedback
