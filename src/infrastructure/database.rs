@@ -8,3 +8,10 @@ pub async fn init_database(database_url: &str) -> PgPool {
         .await
         .expect("Failed to create pool")
 }
+
+pub async fn run_migrations(pool: &PgPool) {
+    sqlx::migrate!("./migrations")
+        .run(pool)
+        .await
+        .expect("Failed to run database migrations");
+}

@@ -1,11 +1,11 @@
+use actix_web::web;
 use async_trait::async_trait;
 use chrono::{NaiveDate, NaiveTime};
 use log::{error, info};
 use sqlx::PgPool;
 use uuid::Uuid;
-use actix_web::web;
 
-use crate::domain::models::audit::{CreateAuditDto, Audit, AvailableAuditData};
+use crate::domain::models::audit::{Audit, AvailableAuditData, CreateAuditDto};
 use crate::domain::repositories::audit::AuditRepository;
 
 #[derive(Clone)]
@@ -64,31 +64,33 @@ impl AuditRepository for PgAuditRepository {
     }
 
     async fn get_audits(
-        &self, 
-        page: i32, 
-        email: Option<String>, 
-        path: Option<String>, 
-        date_of_request: Option<String>
+        &self,
+        page: i32,
+        email: Option<String>,
+        path: Option<String>,
+        date_of_request: Option<String>,
     ) -> Result<(Vec<Audit>, i64), sqlx::Error> {
         let limit = 15;
         let offset = (page - 1) * limit;
-        
+
         // Conversão condicional da data
         let date_filter = if let Some(date_str) = &date_of_request {
             match NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
                 Ok(date) => Some(date),
-                Err(_) => return Err(sqlx::Error::ColumnDecode {
-                    index: "".to_string(),
-                    source: Box::new(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "Invalid date format"
-                    )),
-                }),
+                Err(_) => {
+                    return Err(sqlx::Error::ColumnDecode {
+                        index: "".to_string(),
+                        source: Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Invalid date format",
+                        )),
+                    })
+                }
             }
         } else {
             None
         };
-        
+
         // Construção das consultas baseadas nos parâmetros
         let (audits, total_records) = match (email.as_ref(), path.as_ref(), date_filter) {
             // Sem filtros
@@ -105,16 +107,15 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_all(&self.pool)
                 .await?;
-                
-                let total: i64 = sqlx::query_scalar!(
-                    r#"SELECT COUNT(*) as "count!: i64" FROM audit"#
-                )
-                .fetch_one(&self.pool)
-                .await?;
-                
+
+                let total: i64 =
+                    sqlx::query_scalar!(r#"SELECT COUNT(*) as "count!: i64" FROM audit"#)
+                        .fetch_one(&self.pool)
+                        .await?;
+
                 (audits, total)
-            },
-            
+            }
+
             // Apenas email
             (Some(email_val), None, None) => {
                 let audits = sqlx::query_as!(Audit,
@@ -131,17 +132,17 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_all(&self.pool)
                 .await?;
-                
+
                 let total: i64 = sqlx::query_scalar!(
                     r#"SELECT COUNT(*) as "count!: i64" FROM audit WHERE user_email = $1"#,
                     email_val
                 )
                 .fetch_one(&self.pool)
                 .await?;
-                
+
                 (audits, total)
-            },
-            
+            }
+
             // Apenas path
             (None, Some(path_val), None) => {
                 let audits = sqlx::query_as!(Audit,
@@ -158,17 +159,17 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_all(&self.pool)
                 .await?;
-                
+
                 let total: i64 = sqlx::query_scalar!(
                     r#"SELECT COUNT(*) as "count!: i64" FROM audit WHERE path = $1"#,
                     path_val
                 )
                 .fetch_one(&self.pool)
                 .await?;
-                
+
                 (audits, total)
-            },
-            
+            }
+
             // Apenas data
             (None, None, Some(date_val)) => {
                 let audits = sqlx::query_as!(Audit,
@@ -185,17 +186,17 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_all(&self.pool)
                 .await?;
-                
+
                 let total: i64 = sqlx::query_scalar!(
                     r#"SELECT COUNT(*) as "count!: i64" FROM audit WHERE date_of_request = $1"#,
                     date_val
                 )
                 .fetch_one(&self.pool)
                 .await?;
-                
+
                 (audits, total)
-            },
-            
+            }
+
             // Email e path
             (Some(email_val), Some(path_val), None) => {
                 let audits = sqlx::query_as!(Audit,
@@ -213,7 +214,7 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_all(&self.pool)
                 .await?;
-                
+
                 let total: i64 = sqlx::query_scalar!(
                     r#"SELECT COUNT(*) as "count!: i64" FROM audit WHERE user_email = $1 AND path = $2"#,
                     email_val,
@@ -221,10 +222,10 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_one(&self.pool)
                 .await?;
-                
+
                 (audits, total)
-            },
-            
+            }
+
             // Email e data
             (Some(email_val), None, Some(date_val)) => {
                 let audits = sqlx::query_as!(Audit,
@@ -242,7 +243,7 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_all(&self.pool)
                 .await?;
-                
+
                 let total: i64 = sqlx::query_scalar!(
                     r#"SELECT COUNT(*) as "count!: i64" FROM audit WHERE user_email = $1 AND date_of_request = $2"#,
                     email_val,
@@ -250,10 +251,10 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_one(&self.pool)
                 .await?;
-                
+
                 (audits, total)
-            },
-            
+            }
+
             // Path e data
             (None, Some(path_val), Some(date_val)) => {
                 let audits = sqlx::query_as!(Audit,
@@ -271,7 +272,7 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_all(&self.pool)
                 .await?;
-                
+
                 let total: i64 = sqlx::query_scalar!(
                     r#"SELECT COUNT(*) as "count!: i64" FROM audit WHERE path = $1 AND date_of_request = $2"#,
                     path_val,
@@ -279,10 +280,10 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_one(&self.pool)
                 .await?;
-                
+
                 (audits, total)
-            },
-            
+            }
+
             // Todos os filtros
             (Some(email_val), Some(path_val), Some(date_val)) => {
                 let audits = sqlx::query_as!(Audit,
@@ -301,7 +302,7 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_all(&self.pool)
                 .await?;
-                
+
                 let total: i64 = sqlx::query_scalar!(
                     r#"SELECT COUNT(*) as "count!: i64" FROM audit 
                     WHERE user_email = $1 AND path = $2 AND date_of_request = $3"#,
@@ -311,14 +312,14 @@ impl AuditRepository for PgAuditRepository {
                 )
                 .fetch_one(&self.pool)
                 .await?;
-                
+
                 (audits, total)
-            },
+            }
         };
-        
+
         Ok((audits, total_records))
     }
-    
+
     // Método get_available_data
     async fn get_available_data(&self) -> Result<AvailableAuditData, sqlx::Error> {
         // Consulta para obter e-mails distintos
@@ -335,7 +336,7 @@ impl AuditRepository for PgAuditRepository {
         .into_iter()
         .map(|row| row.user_email)
         .collect();
-        
+
         // Consulta para obter paths distintos
         let paths: Vec<String> = sqlx::query!(
             r#"
@@ -350,7 +351,7 @@ impl AuditRepository for PgAuditRepository {
         .into_iter()
         .map(|row| row.path)
         .collect();
-        
+
         // Consulta para obter métodos distintos
         let methods: Vec<String> = sqlx::query!(
             r#"
@@ -365,7 +366,7 @@ impl AuditRepository for PgAuditRepository {
         .into_iter()
         .map(|row| row.method)
         .collect();
-        
+
         // Consulta para obter datas distintas
         let dates: Vec<String> = sqlx::query!(
             r#"
@@ -380,7 +381,7 @@ impl AuditRepository for PgAuditRepository {
         .into_iter()
         .map(|row| row.date_of_request.format("%Y-%m-%d").to_string())
         .collect();
-        
+
         Ok(AvailableAuditData {
             user_email: emails,
             path: paths,
@@ -390,7 +391,8 @@ impl AuditRepository for PgAuditRepository {
     }
 
     async fn get_all_audits(&self) -> Result<Vec<Audit>, sqlx::Error> {
-        let audits = sqlx::query_as!(Audit,
+        let audits = sqlx::query_as!(
+            Audit,
             r#"
             SELECT id, user_email, user_profile, method, path, ip, date_of_request, hour_of_request
             FROM audit
@@ -399,7 +401,7 @@ impl AuditRepository for PgAuditRepository {
         )
         .fetch_all(&self.pool)
         .await?;
-        
+
         Ok(audits)
     }
 }
@@ -411,15 +413,17 @@ impl AuditRepository for web::Data<PgAuditRepository> {
     }
 
     async fn get_audits(
-        &self, 
-        page: i32, 
-        email: Option<String>, 
-        path: Option<String>, 
-        date_of_request: Option<String>
+        &self,
+        page: i32,
+        email: Option<String>,
+        path: Option<String>,
+        date_of_request: Option<String>,
     ) -> Result<(Vec<Audit>, i64), sqlx::Error> {
-        self.get_ref().get_audits(page, email, path, date_of_request).await
+        self.get_ref()
+            .get_audits(page, email, path, date_of_request)
+            .await
     }
-    
+
     async fn get_available_data(&self) -> Result<AvailableAuditData, sqlx::Error> {
         self.get_ref().get_available_data().await
     }

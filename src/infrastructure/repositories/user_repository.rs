@@ -1,20 +1,20 @@
 use crate::domain::models::user::{
-    AddApplicationDto, 
-    AddHealthUnitDto, 
-    AddVerificationCodeDto, 
-    AddVerificationCodeResponse, 
-    CreateFeedbackRespiratoryDiseasesDto,
+    AddApplicationDto,
+    AddHealthUnitDto,
+    AddVerificationCodeDto,
+    AddVerificationCodeResponse,
     CreateFeedbackOsteoporosisDto,
-    FeedbackRespiratoryDiseasesResponse, 
-    CreateFeedbackTuberculosisDto, 
-    CreateUserDto, 
-    //FeedbackRespiratoryDiseasesResponse, 
-    FeedbackTuberculosisResponse, 
+    CreateFeedbackRespiratoryDiseasesDto,
+    CreateFeedbackTuberculosisDto,
+    CreateUserDto,
     FeedbackOsteoporosisResponse,
-    UpdateEnabledUserDto, 
-    UpdateUserDto, 
-    UpdateVerificationCodeDto, 
-    User
+    FeedbackRespiratoryDiseasesResponse,
+    //FeedbackRespiratoryDiseasesResponse,
+    FeedbackTuberculosisResponse,
+    UpdateEnabledUserDto,
+    UpdateUserDto,
+    UpdateVerificationCodeDto,
+    User,
 };
 use crate::domain::repositories::user::UserRepository;
 use async_trait::async_trait;
@@ -98,7 +98,7 @@ impl UserRepository for PgUserRepository {
             .collect())
     }
 
-     async fn find_all_feedbacks_osteoporosis(
+    async fn find_all_feedbacks_osteoporosis(
         &self,
     ) -> Result<Vec<FeedbackOsteoporosisResponse>, sqlx::Error> {
         let feedbacks = sqlx::query!(
@@ -713,7 +713,11 @@ impl UserRepository for PgUserRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    async fn add_health_unit(&self, id: Uuid, health_units: AddHealthUnitDto) -> Result<Option<User>, sqlx::Error> {
+    async fn add_health_unit(
+        &self,
+        id: Uuid,
+        health_units: AddHealthUnitDto,
+    ) -> Result<Option<User>, sqlx::Error> {
         let current_user = self.find_by_id(id).await?;
 
         if let Some(_) = current_user {

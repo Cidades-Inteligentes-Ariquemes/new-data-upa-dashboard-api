@@ -1,3 +1,3 @@
 pub mod database;
-pub mod repositories;
 pub mod email;
+pub mod repositories;

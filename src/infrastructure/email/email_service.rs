@@ -1,9 +1,9 @@
-use reqwest;
-use async_trait::async_trait;
-use crate::domain::email::email_service::{EmailService, EmailRequest, EmailContext};
+use crate::domain::email::email_service::{EmailContext, EmailRequest, EmailService};
 use crate::utils::config_env::Config;
 use actix_web::web;
+use async_trait::async_trait;
 use log::error;
+use reqwest;
 
 pub struct SmtpEmailService {
     client: reqwest::Client,
@@ -12,9 +12,7 @@ pub struct SmtpEmailService {
 }
 
 impl SmtpEmailService {
-    pub fn new(
-        config: web::Data<Config>,
-    ) -> Self {
+    pub fn new(config: web::Data<Config>) -> Self {
         Self {
             client: reqwest::Client::new(),
             email_from: config.email.clone(),
@@ -42,15 +40,8 @@ impl EmailService for SmtpEmailService {
             template: String::from("main"),
         };
 
-        match self.client
-            .post(&self.api_url)
-            .json(&request)
-            .send()
-            .await
-        {
-            Ok(_response) => {
-                Ok(true)
-            }
+        match self.client.post(&self.api_url).json(&request).send().await {
+            Ok(_response) => Ok(true),
             Err(e) => {
                 error!("Error sending email: {:?}", e);
                 Ok(false)
