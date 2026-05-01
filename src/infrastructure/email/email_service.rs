@@ -16,7 +16,7 @@ impl SmtpEmailService {
         Self {
             client: reqwest::Client::new(),
             email_from: config.email.clone(),
-            api_url: String::from(config.simple_mail_url.clone()),
+            api_url: config.simple_mail_url.clone(),
         }
     }
 }

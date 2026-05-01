@@ -270,7 +270,7 @@ impl UserRepository for PgUserRepository {
     async fn update(&self, id: Uuid, user: UpdateUserDto) -> Result<Option<User>, sqlx::Error> {
         let current_user = self.find_by_id(id).await?;
 
-        if let Some(_) = current_user {
+        if current_user.is_some() {
             let updated_user = sqlx::query!(
                 r#"
                 UPDATE users_api
@@ -393,7 +393,7 @@ impl UserRepository for PgUserRepository {
     ) -> Result<Option<User>, sqlx::Error> {
         let current_user = self.find_by_id(id).await?;
 
-        if let Some(_) = current_user {
+        if current_user.is_some() {
             let result = sqlx::query!(
                 r#"
                 UPDATE users_api
@@ -720,7 +720,7 @@ impl UserRepository for PgUserRepository {
     ) -> Result<Option<User>, sqlx::Error> {
         let current_user = self.find_by_id(id).await?;
 
-        if let Some(_) = current_user {
+        if current_user.is_some() {
             let result = sqlx::query!(
                 r#"
                 UPDATE users_api
