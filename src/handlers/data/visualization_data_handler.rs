@@ -181,3 +181,46 @@ pub async fn heat_map_with_the_number_of_medical_appointments_by_neighborhood(
         .heat_map_with_the_number_of_medical_appointments_by_neighborhood(user_id, unidade_id)
         .await
 }
+
+pub async fn appointments_per_cid(
+    service: web::Data<VisualizationDataService>,
+    path: web::Path<(String, String)>, // (user_id, unidade_id)
+) -> Result<HttpResponse, AppError> {
+    let (user_id, unidade_id) = path.into_inner();
+
+    let unidade_id: i32 = unidade_id
+        .parse()
+        .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
+
+    service.appointments_per_cid(user_id, unidade_id).await
+}
+
+pub async fn appointments_per_classification(
+    service: web::Data<VisualizationDataService>,
+    path: web::Path<(String, String)>, // (user_id, unidade_id)
+) -> Result<HttpResponse, AppError> {
+    let (user_id, unidade_id) = path.into_inner();
+
+    let unidade_id: i32 = unidade_id
+        .parse()
+        .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
+
+    service
+        .appointments_per_classification(user_id, unidade_id)
+        .await
+}
+
+pub async fn medical_appointments_per_classification(
+    service: web::Data<VisualizationDataService>,
+    path: web::Path<(String, String)>, // (user_id, unidade_id)
+) -> Result<HttpResponse, AppError> {
+    let (user_id, unidade_id) = path.into_inner();
+
+    let unidade_id: i32 = unidade_id
+        .parse()
+        .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
+
+    service
+        .medical_appointments_per_classification(user_id, unidade_id)
+        .await
+}
