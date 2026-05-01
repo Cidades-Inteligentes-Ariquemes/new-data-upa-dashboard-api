@@ -23,6 +23,12 @@ impl Argon2PasswordEncryptor {
     }
 }
 
+impl Default for Argon2PasswordEncryptor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PasswordEncryptorPort for Argon2PasswordEncryptor {
     fn hash_password(&self, password: &str) -> Result<String, argon2::password_hash::Error> {
         let salt = SaltString::generate(&mut OsRng);

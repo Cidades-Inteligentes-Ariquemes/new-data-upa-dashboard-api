@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 // Interface para geração de tokens
 pub trait TokenGeneratorPort: Send + Sync {
+    #[allow(clippy::too_many_arguments)]
     fn generate_token(
         &self,
         user_id: String,
@@ -26,7 +27,14 @@ impl JwtTokenGenerator {
     }
 }
 
+impl Default for JwtTokenGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TokenGeneratorPort for JwtTokenGenerator {
+    #[allow(clippy::too_many_arguments)]
     fn generate_token(
         &self,
         user_id: String,

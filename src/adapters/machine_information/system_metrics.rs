@@ -104,3 +104,9 @@ impl SystemMetrics {
         sysinfo::System::uptime() * 1000
     }
 }
+
+impl Default for SystemMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
