@@ -77,7 +77,7 @@ where
         }
 
         // Primeiro verifica se é rota pública
-        if is_public_route(&req.path()) {
+        if is_public_route(req.path()) {
             let fut = self.service.call(req);
             return Box::pin(async move {
                 let res = fut.await?;
@@ -112,7 +112,7 @@ where
         };
 
         // Verifica permissões
-        if !routes_for_users_common(&req.path()) && token_data.claims.profile != "Administrador" {
+        if !routes_for_users_common(req.path()) && token_data.claims.profile != "Administrador" {
             return Box::pin(async move {
                 Err(ErrorUnauthorized("This access is for administrators only"))
             });
