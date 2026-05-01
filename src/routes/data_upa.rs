@@ -1,5 +1,7 @@
+use crate::handlers::data::{
+    data_upa_handler, update_graph_data_handler, visualization_data_handler,
+};
 use actix_web::web;
-use crate::handlers::data::{data_upa_handler,update_graph_data_handler, visualization_data_handler};
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(

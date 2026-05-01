@@ -1,80 +1,76 @@
-use actix_web::web;
 use crate::handlers::user::user_handler;
+use actix_web::web;
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/users")
             .service(
                 web::resource("/send-verification-code/{email}")
-                    .route(web::post().to(user_handler::send_verification_code))
+                    .route(web::post().to(user_handler::send_verification_code)),
             )
             .service(
                 web::resource("/resend-verification-code/{email}")
-                    .route(web::post().to(user_handler::resend_verification_code))
+                    .route(web::post().to(user_handler::resend_verification_code)),
             )
             .service(
                 web::resource("/update-password-for-forgetting-user/{id}")
-                    .route(web::patch().to(user_handler::update_password_for_forgetting_user))
+                    .route(web::patch().to(user_handler::update_password_for_forgetting_user)),
             )
             .service(
                 web::resource("/update-password-by-user-common/{id}")
-                    .route(web::patch().to(user_handler::update_password_by_user_common))
+                    .route(web::patch().to(user_handler::update_password_by_user_common)),
             )
             .service(
                 web::resource("/confirm-verification-code")
-                    .route(web::post().to(user_handler::confirm_verification_code))
+                    .route(web::post().to(user_handler::confirm_verification_code)),
             )
             .service(
                 web::resource("/feedback-respiratory-diseases")
-                    .route(web::post().to(user_handler::create_feedback_respiratory_diseases))
+                    .route(web::post().to(user_handler::create_feedback_respiratory_diseases)),
             )
             .service(
                 web::resource("/feedback-tuberculosis")
-                    .route(web::post().to(user_handler::create_feedback_tuberculosis))
+                    .route(web::post().to(user_handler::create_feedback_tuberculosis)),
             )
             .service(
                 web::resource("/feedback-osteoporosis")
-                    .route(web::post().to(user_handler::create_feedback_osteoporosis))
+                    .route(web::post().to(user_handler::create_feedback_osteoporosis)),
             )
-            .service(
-                web::resource("/feedbacks")
-                    .route(web::get().to(user_handler::get_feedbacks))
-            )
+            .service(web::resource("/feedbacks").route(web::get().to(user_handler::get_feedbacks)))
             .service(
                 web::resource("")
                     .route(web::get().to(user_handler::get_users))
-                    .route(web::post().to(user_handler::create_user))
+                    .route(web::post().to(user_handler::create_user)),
             )
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(user_handler::get_user_by_id))
                     .route(web::put().to(user_handler::update_user))
-                    .route(web::delete().to(user_handler::delete_user))
+                    .route(web::delete().to(user_handler::delete_user)),
             )
             .service(
                 web::resource("/{id}/update-password-by-admin")
-                    .route(web::patch().to(user_handler::update_password_by_admin))
+                    .route(web::patch().to(user_handler::update_password_by_admin)),
             )
             .service(
                 web::resource("/{id}/application/{application_name}")
-                    .route(web::delete().to(user_handler::delete_application))
-            ) 
+                    .route(web::delete().to(user_handler::delete_application)),
+            )
             .service(
                 web::resource("/{id}/applications")
-                    .route(web::post().to(user_handler::add_application))
+                    .route(web::post().to(user_handler::add_application)),
             )
             .service(
                 web::resource("/{id}/update-enabled")
-                    .route(web::patch().to(user_handler::update_enabled))
+                    .route(web::patch().to(user_handler::update_enabled)),
             )
             .service(
                 web::resource("/{id}/health-units")
-                    .route(web::post().to(user_handler::add_health_unit))
+                    .route(web::post().to(user_handler::add_health_unit)),
             )
             .service(
                 web::resource("/{id}/health-unit/{health_unit_id}")
-                    .route(web::delete().to(user_handler::delete_health_unit))
-            )
-
+                    .route(web::delete().to(user_handler::delete_health_unit)),
+            ),
     );
 }
