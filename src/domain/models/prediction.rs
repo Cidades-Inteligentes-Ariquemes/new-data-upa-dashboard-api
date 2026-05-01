@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct PredictionResponse {
@@ -31,13 +31,10 @@ pub struct TuberculosisPredictionResponse {
     pub probabilities: TuberculosisProbabilities,
 }
 
-
-
 #[derive(Serialize, Deserialize)]
 pub struct TBResponse {
     pub prediction_tb: TuberculosisPredictionResponse,
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct OsteoporosisProbabilities {
@@ -51,8 +48,6 @@ pub struct OsteoporosisPredictionResponse {
     pub class_pred: String,
     pub probabilities: OsteoporosisProbabilities,
 }
-
-
 
 #[derive(Serialize, Deserialize)]
 pub struct OsteoporosisResponse {

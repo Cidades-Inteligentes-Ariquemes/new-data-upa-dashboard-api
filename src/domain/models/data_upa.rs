@@ -1,6 +1,5 @@
 use serde::Serialize;
 
-
 #[derive(Debug, Serialize)]
 pub struct HealthUnit {
     #[serde(rename = "ifrounidadeid")]

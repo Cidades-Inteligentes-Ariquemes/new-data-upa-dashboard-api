@@ -15,14 +15,13 @@ pub struct ProfileInfo {
     pub unidade_id: i32,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct UserPronto {
     pub username: String,
     #[serde(skip_serializing)]
     pub password_pronto: String,
-    pub userid: String,    
-    pub login_id: String, 
+    pub userid: String,
+    pub login_id: String,
     pub fullname: String,
     pub unit_id: i32,
 }

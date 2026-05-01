@@ -1,5 +1,5 @@
-use serde::Serialize;
 use async_trait::async_trait;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct EmailContext {
@@ -18,5 +18,10 @@ pub struct EmailRequest {
 
 #[async_trait]
 pub trait EmailService {
-    async fn send_email(&self, user: String, email_user: String, code_verification: String) -> Result<bool, Box<dyn std::error::Error>>;
+    async fn send_email(
+        &self,
+        user: String,
+        email_user: String,
+        code_verification: String,
+    ) -> Result<bool, Box<dyn std::error::Error>>;
 }

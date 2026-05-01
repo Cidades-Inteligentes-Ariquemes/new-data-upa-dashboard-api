@@ -121,7 +121,6 @@ pub struct FeedbackOsteoporosisResponse {
     pub correct_prediction: String,
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct OsteoporosisStats {
     pub total_quantity: i32,
@@ -135,11 +134,10 @@ pub struct ProcessedFeedbackOsteoporosisResponse {
     pub osteoporosis: OsteoporosisStats,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateFeedbackTuberculosisDto {
     pub user_name: String,
-    pub feedback: String
+    pub feedback: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -27,6 +27,3 @@ pub struct Claims {
     pub allowed_applications: Vec<String>,
     pub allowed_health_units: Vec<i64>,
 }
-
-
-
