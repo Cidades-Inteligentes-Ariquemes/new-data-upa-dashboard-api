@@ -121,7 +121,7 @@ impl UserService {
         }
 
         // Verifica se o usuário já existe
-        if let Some(_) = self.repo.find_by_email(&user.email).await.unwrap() {
+        if self.repo.find_by_email(&user.email).await.unwrap().is_some() {
             return Err(AppError::BadRequest(format!(
                 "Error adding user: email '{}' already exists",
                 user.email
@@ -494,7 +494,7 @@ impl UserService {
         }
 
         // Validação de aplicações permitidas
-        validate_applications(&[application_name.clone()])?;
+        validate_applications(std::slice::from_ref(&application_name))?;
 
         // Verifica se existe mais de uma aplicação permitida
         if user.unwrap().allowed_applications.len() == 1 {
@@ -870,10 +870,10 @@ impl UserService {
             Ok(updated_used_code) => Ok(ApiResponse::success(updated_used_code).into_response()),
             Err(e) => {
                 error!("Error updating verification code: {:?}", e);
-                return Err(AppError::BadRequest(format!(
+                Err(AppError::BadRequest(format!(
                     "Failed to update verification code: {:?}",
                     e
-                )));
+                )))
             }
         }
     }
@@ -884,7 +884,7 @@ impl UserService {
         data: UpdatePasswordForgettingUserDto,
     ) -> Result<HttpResponse, AppError> {
         //Verifica se o usuário existe
-        match self.repo.find_by_id(user_id.clone()).await {
+        match self.repo.find_by_id(user_id).await {
             Ok(Some(_)) => (),
             Ok(None) => return Err(AppError::BadRequest("User not found".to_string())),
             Err(_) => return Err(AppError::InternalServerError),
@@ -893,7 +893,7 @@ impl UserService {
         //Verifica se existe codigo para o id verification enviado
         let code_exist = match self
             .repo
-            .verify_code_exist(data.id_verification.clone())
+            .verify_code_exist(data.id_verification)
             .await
         {
             Ok(code) => code,

@@ -57,7 +57,7 @@ impl AuthProntoService {
         let mut units_id = Vec::new();
 
         for unit in &user {
-            units_id.push(unit.unit_id as i32);
+            units_id.push(unit.unit_id);
         }
 
         let units_id: PlIndexSet<i32> = units_id.into_iter().collect();

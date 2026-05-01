@@ -254,6 +254,74 @@ impl UpdateGraphDataService {
                         ),
                     ),
                 ]),
+                // Atendimentos por CID
+                HashMap::from([
+                    ("table", Value::String("bpa".to_string())),
+                    ("column", json!(["ifrocompetencia", "ifrocidcd"])),
+                    (
+                        "identifier",
+                        Value::String("number_of_appointments_per_cid".to_string()),
+                    ),
+                    (
+                        "table_json",
+                        Value::String("number_of_appointments_per_cid".to_string()),
+                    ),
+                    (
+                        "method",
+                        Value::String("create_dict_to_number_of_appointments_per_cid".to_string()),
+                    ),
+                ]),
+                // Atendimentos por classificação
+                HashMap::from([
+                    ("table", Value::String("bpa".to_string())),
+                    ("column", json!(["ifrocompetencia", "ifroclassificacao"])),
+                    (
+                        "identifier",
+                        Value::String("number_of_appointments_per_classification".to_string()),
+                    ),
+                    (
+                        "table_json",
+                        Value::String("number_of_appointments_per_classification".to_string()),
+                    ),
+                    (
+                        "method",
+                        Value::String(
+                            "create_dict_to_number_of_appointments_per_classification".to_string(),
+                        ),
+                    ),
+                ]),
+                // Atendimentos médicos por classificação
+                HashMap::from([
+                    ("table", Value::String("bpa".to_string())),
+                    (
+                        "column",
+                        json!([
+                            "ifrocompetencia",
+                            "ifroclassificacao",
+                            "ifroprofissionalcbods",
+                            "ifrotabelanome"
+                        ]),
+                    ),
+                    (
+                        "identifier",
+                        Value::String(
+                            "number_of_medical_appointments_per_classification".to_string(),
+                        ),
+                    ),
+                    (
+                        "table_json",
+                        Value::String(
+                            "number_of_medical_appointments_per_classification".to_string(),
+                        ),
+                    ),
+                    (
+                        "method",
+                        Value::String(
+                            "create_dict_to_number_of_medical_appointments_per_classification"
+                                .to_string(),
+                        ),
+                    ),
+                ]),
             ];
 
             // Adiciona os parâmetros de mapas de calor se a unidade for diferente de 3
@@ -550,6 +618,30 @@ impl UpdateGraphDataService {
                 .create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(
                     main_df,
                 )
+                .await
+                .map_err(|e| {
+                    error!("Erro no método {}: {}", method, e);
+                    AppError::DataProcessingError(e.to_string())
+                }),
+            ("create_dict_to_number_of_appointments_per_cid", None) => self
+                .data_processing
+                .create_dict_to_number_of_appointments_per_cid(main_df)
+                .await
+                .map_err(|e| {
+                    error!("Erro no método {}: {}", method, e);
+                    AppError::DataProcessingError(e.to_string())
+                }),
+            ("create_dict_to_number_of_appointments_per_classification", None) => self
+                .data_processing
+                .create_dict_to_number_of_appointments_per_classification(main_df)
+                .await
+                .map_err(|e| {
+                    error!("Erro no método {}: {}", method, e);
+                    AppError::DataProcessingError(e.to_string())
+                }),
+            ("create_dict_to_number_of_medical_appointments_per_classification", None) => self
+                .data_processing
+                .create_dict_to_number_of_medical_appointments_per_classification(main_df)
                 .await
                 .map_err(|e| {
                     error!("Erro no método {}: {}", method, e);
