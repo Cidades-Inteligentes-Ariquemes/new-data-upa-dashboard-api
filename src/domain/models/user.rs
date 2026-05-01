@@ -90,7 +90,7 @@ pub struct FeedbackRespiratoryDiseasesResponse {
     pub correct_prediction: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 pub struct DiseaseStats {
     pub total_quantity: i32,
     pub total_quantity_correct: i32,
@@ -121,7 +121,7 @@ pub struct FeedbackOsteoporosisResponse {
     pub correct_prediction: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 pub struct OsteoporosisStats {
     pub total_quantity: i32,
     pub total_quantity_correct: i32,
