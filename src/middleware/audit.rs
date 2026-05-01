@@ -18,7 +18,6 @@ pub struct AuditMiddleware<R: AuditRepository> {
     repository: R,
 }
 
-
 impl<R: AuditRepository> AuditMiddleware<R> {
     pub fn new(repository: R) -> Self {
         Self { repository }
@@ -88,10 +87,10 @@ where
 
         // Tenta obter as claims do usuário, se estiver autenticado
         if let Some(claims) = req.extensions().get::<Claims>() {
-            user_email = if !claims.email.is_empty() { 
-                claims.email.clone() 
-            } else { 
-                claims.full_name.clone() 
+            user_email = if !claims.email.is_empty() {
+                claims.email.clone()
+            } else {
+                claims.full_name.clone()
             };
             user_profile = claims.profile.clone();
         }
@@ -121,16 +120,16 @@ where
         Box::pin(async move {
             // Registra a auditoria em paralelo com o processamento da requisição
             let audit_future = repository_clone.add_information_audit(audit_data_clone);
-            
+
             // Continua com o fluxo normal da requisição
             let res = fut.await?;
-            
+
             // Aguarda a conclusão do registro de auditoria, mas não bloquear a resposta
             if let Err(e) = audit_future.await {
                 error!("Error adding audit information: {:?}", e);
                 // Não falha a requisição se o registro de auditoria falhar
             }
-            
+
             Ok(res)
         })
     }

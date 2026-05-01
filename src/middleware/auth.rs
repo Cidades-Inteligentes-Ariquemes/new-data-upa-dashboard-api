@@ -16,7 +16,7 @@ pub struct AuthMiddleware;
 // Implementação do Transform trait para AuthMiddleware
 impl<S, B> Transform<S, ServiceRequest> for AuthMiddleware
 where
-// Restrições de tipo necessárias para o Service
+    // Restrições de tipo necessárias para o Service
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
     B: 'static,
@@ -54,7 +54,6 @@ where
 
     // Método principal que processa cada requisição
     fn call(&self, req: ServiceRequest) -> Self::Future {
-
         // Carrega as variaveis de ambiente
         let config = req.app_data::<actix_web::web::Data<Config>>().unwrap();
 
@@ -70,7 +69,7 @@ where
                     if api_key_header.to_str().unwrap() != config.api_key {
                         return Box::pin(err(ErrorUnauthorized("wrong api_key")));
                     }
-                },
+                }
                 None => {
                     return Box::pin(async move { Err(ErrorUnauthorized("empty api_key")) });
                 }
@@ -92,17 +91,13 @@ where
         let auth_header = match auth_header {
             Some(header) => header.to_str().unwrap_or_default(),
             None => {
-                return Box::pin(async move {
-                    Err(ErrorUnauthorized("No authorization header"))
-                })
+                return Box::pin(async move { Err(ErrorUnauthorized("No authorization header")) })
             }
         };
 
         // Verifica formato do token
         if !auth_header.starts_with("Bearer ") {
-            return Box::pin(async move {
-                Err(ErrorUnauthorized("Invalid authorization header"))
-            });
+            return Box::pin(async move { Err(ErrorUnauthorized("Invalid authorization header")) });
         }
 
         // Decodifica e valida o token
@@ -113,11 +108,7 @@ where
             &Validation::default(),
         ) {
             Ok(data) => data,
-            Err(_) => {
-                return Box::pin(async move {
-                    Err(ErrorUnauthorized("Invalid token"))
-                })
-            }
+            Err(_) => return Box::pin(async move { Err(ErrorUnauthorized("Invalid token")) }),
         };
 
         // Verifica permissões
