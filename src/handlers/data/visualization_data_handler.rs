@@ -1,19 +1,20 @@
-use actix_web::{web, HttpResponse};
 use crate::application::visualization_data_service::VisualizationDataService;
 use crate::AppError;
-
-
+use actix_web::{web, HttpResponse};
 
 pub async fn number_of_appointments_per_month(
     service: web::Data<VisualizationDataService>,
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.number_of_appointments_per_month(user_id, unidade_id).await
+
+    service
+        .number_of_appointments_per_month(user_id, unidade_id)
+        .await
 }
 
 pub async fn number_of_appointments_per_year(
@@ -21,11 +22,14 @@ pub async fn number_of_appointments_per_year(
     path: web::Path<(String, String, String)>, // (user_id, unidade_id, year)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id, year) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.number_of_appointments_per_year(user_id, unidade_id, year).await
+
+    service
+        .number_of_appointments_per_year(user_id, unidade_id, year)
+        .await
 }
 
 pub async fn years_available_for_number_of_appointments_per_month(
@@ -33,11 +37,14 @@ pub async fn years_available_for_number_of_appointments_per_month(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.years_available_for_number_of_appointments_per_month(user_id, unidade_id).await
+
+    service
+        .years_available_for_number_of_appointments_per_month(user_id, unidade_id)
+        .await
 }
 
 pub async fn number_of_appointments_per_flow(
@@ -45,11 +52,14 @@ pub async fn number_of_appointments_per_flow(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.number_of_appointments_per_flow(user_id, unidade_id).await
+
+    service
+        .number_of_appointments_per_flow(user_id, unidade_id)
+        .await
 }
 
 pub async fn distribuition_of_patients_ages(
@@ -57,11 +67,14 @@ pub async fn distribuition_of_patients_ages(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.distribuition_of_patients_ages(user_id, unidade_id).await
+
+    service
+        .distribuition_of_patients_ages(user_id, unidade_id)
+        .await
 }
 
 pub async fn number_of_calls_per_day_of_the_week(
@@ -69,11 +82,14 @@ pub async fn number_of_calls_per_day_of_the_week(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.number_of_calls_per_day_of_the_week(user_id, unidade_id).await
+
+    service
+        .number_of_calls_per_day_of_the_week(user_id, unidade_id)
+        .await
 }
 
 pub async fn distribution_of_services_by_hour_group(
@@ -81,11 +97,14 @@ pub async fn distribution_of_services_by_hour_group(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.distribution_of_services_by_hour_group(user_id, unidade_id).await
+
+    service
+        .distribution_of_services_by_hour_group(user_id, unidade_id)
+        .await
 }
 
 pub async fn number_of_visits_per_nurse(
@@ -93,11 +112,14 @@ pub async fn number_of_visits_per_nurse(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.number_of_visits_per_nurse(user_id, unidade_id).await
+
+    service
+        .number_of_visits_per_nurse(user_id, unidade_id)
+        .await
 }
 
 pub async fn number_of_visits_per_doctor(
@@ -105,11 +127,14 @@ pub async fn number_of_visits_per_doctor(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.number_of_visits_per_doctor(user_id, unidade_id).await
+
+    service
+        .number_of_visits_per_doctor(user_id, unidade_id)
+        .await
 }
 
 pub async fn average_time_in_minutes_per_doctor(
@@ -117,11 +142,14 @@ pub async fn average_time_in_minutes_per_doctor(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.average_time_in_minutes_per_doctor(user_id, unidade_id).await
+
+    service
+        .average_time_in_minutes_per_doctor(user_id, unidade_id)
+        .await
 }
 
 pub async fn heat_map_with_disease_indication(
@@ -129,11 +157,14 @@ pub async fn heat_map_with_disease_indication(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.heat_map_with_disease_indication(user_id, unidade_id).await
+
+    service
+        .heat_map_with_disease_indication(user_id, unidade_id)
+        .await
 }
 
 pub async fn heat_map_with_the_number_of_medical_appointments_by_neighborhood(
@@ -141,9 +172,12 @@ pub async fn heat_map_with_the_number_of_medical_appointments_by_neighborhood(
     path: web::Path<(String, String)>, // (user_id, unidade_id)
 ) -> Result<HttpResponse, AppError> {
     let (user_id, unidade_id) = path.into_inner();
-    
-    let unidade_id: i32 = unidade_id.parse()
+
+    let unidade_id: i32 = unidade_id
+        .parse()
         .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
-    
-    service.heat_map_with_the_number_of_medical_appointments_by_neighborhood(user_id, unidade_id).await
+
+    service
+        .heat_map_with_the_number_of_medical_appointments_by_neighborhood(user_id, unidade_id)
+        .await
 }

@@ -1,25 +1,16 @@
-use actix_web::{web, HttpResponse};
-use uuid::Uuid;
+use crate::domain::models::user::UpdateEnabledUserDto;
 use crate::{
     application::user_service::UserService,
     domain::models::user::{
-        AddApplicationDto, 
-        AddHealthUnitDto, 
-        ApplicationPath, 
-        ConfirmVerificationCodeDto, 
-        CreateFeedbackRespiratoryDiseasesDto, 
-        CreateFeedbackTuberculosisDto, 
-        CreateFeedbackOsteoporosisDto, 
-        CreateUserDto, 
-        IdVerificationDto, 
-        UpdatePasswordByAdminDto, 
-        UpdatePasswordByUserCommonDto, 
-        UpdatePasswordForgettingUserDto, 
-        UpdateUserDto
+        AddApplicationDto, AddHealthUnitDto, ApplicationPath, ConfirmVerificationCodeDto,
+        CreateFeedbackOsteoporosisDto, CreateFeedbackRespiratoryDiseasesDto,
+        CreateFeedbackTuberculosisDto, CreateUserDto, IdVerificationDto, UpdatePasswordByAdminDto,
+        UpdatePasswordByUserCommonDto, UpdatePasswordForgettingUserDto, UpdateUserDto,
     },
     AppError,
 };
-use crate::domain::models::user::UpdateEnabledUserDto;
+use actix_web::{web, HttpResponse};
+use uuid::Uuid;
 
 pub async fn get_users(service: web::Data<UserService>) -> Result<HttpResponse, AppError> {
     service.get_users().await
@@ -44,7 +35,9 @@ pub async fn update_user(
     id: web::Path<Uuid>,
     user: web::Json<UpdateUserDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.update_user(id.into_inner(), user.into_inner()).await
+    service
+        .update_user(id.into_inner(), user.into_inner())
+        .await
 }
 
 pub async fn delete_user(
@@ -59,7 +52,9 @@ pub async fn update_password_by_admin(
     id: web::Path<Uuid>,
     passwords: web::Json<UpdatePasswordByAdminDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.update_password_by_admin(id.into_inner(), passwords.into_inner()).await
+    service
+        .update_password_by_admin(id.into_inner(), passwords.into_inner())
+        .await
 }
 
 pub async fn update_password_by_user_common(
@@ -67,15 +62,19 @@ pub async fn update_password_by_user_common(
     id: web::Path<Uuid>,
     passwords: web::Json<UpdatePasswordByUserCommonDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.update_password_by_user_common(id.into_inner(), passwords.into_inner()).await
+    service
+        .update_password_by_user_common(id.into_inner(), passwords.into_inner())
+        .await
 }
 
 pub async fn update_enabled(
     service: web::Data<UserService>,
     id: web::Path<Uuid>,
-    enabled: web::Json<UpdateEnabledUserDto>
+    enabled: web::Json<UpdateEnabledUserDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.update_enabled(id.into_inner(), enabled.into_inner()).await
+    service
+        .update_enabled(id.into_inner(), enabled.into_inner())
+        .await
 }
 
 pub async fn add_application(
@@ -83,7 +82,9 @@ pub async fn add_application(
     id: web::Path<Uuid>,
     applications: web::Json<AddApplicationDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.add_application(id.into_inner(), applications.into_inner()).await
+    service
+        .add_application(id.into_inner(), applications.into_inner())
+        .await
 }
 
 pub async fn delete_application(
@@ -91,33 +92,39 @@ pub async fn delete_application(
     path: web::Path<ApplicationPath>,
 ) -> Result<HttpResponse, AppError> {
     let params = path.into_inner();
-    service.delete_application(params.id, params.application_name).await
+    service
+        .delete_application(params.id, params.application_name)
+        .await
 }
 
 pub async fn create_feedback_respiratory_diseases(
     service: web::Data<UserService>,
     feedback: web::Json<CreateFeedbackRespiratoryDiseasesDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.create_feedback_respiratory_diseases(feedback.into_inner()).await
+    service
+        .create_feedback_respiratory_diseases(feedback.into_inner())
+        .await
 }
 
 pub async fn create_feedback_tuberculosis(
     service: web::Data<UserService>,
     feedback: web::Json<CreateFeedbackTuberculosisDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.create_feedback_tuberculosis(feedback.into_inner()).await
+    service
+        .create_feedback_tuberculosis(feedback.into_inner())
+        .await
 }
 
 pub async fn create_feedback_osteoporosis(
     service: web::Data<UserService>,
     feedback: web::Json<CreateFeedbackOsteoporosisDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.create_feedback_osteoporosis(feedback.into_inner()).await
+    service
+        .create_feedback_osteoporosis(feedback.into_inner())
+        .await
 }
 
-pub async fn get_feedbacks(
-    service: web::Data<UserService>,
-) -> Result<HttpResponse, AppError> {
+pub async fn get_feedbacks(service: web::Data<UserService>) -> Result<HttpResponse, AppError> {
     service.get_feedbacks().await
 }
 
@@ -133,7 +140,9 @@ pub async fn resend_verification_code(
     email: web::Path<String>,
     id_verification: web::Json<IdVerificationDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.resend_verification_code(email.into_inner(), id_verification.into_inner()).await
+    service
+        .resend_verification_code(email.into_inner(), id_verification.into_inner())
+        .await
 }
 
 pub async fn confirm_verification_code(
@@ -148,7 +157,9 @@ pub async fn update_password_for_forgetting_user(
     user_id: web::Path<Uuid>,
     data: web::Json<UpdatePasswordForgettingUserDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.update_password_for_forgetting_user(user_id.into_inner(), data.into_inner()).await
+    service
+        .update_password_for_forgetting_user(user_id.into_inner(), data.into_inner())
+        .await
 }
 
 pub async fn add_health_unit(
@@ -156,7 +167,9 @@ pub async fn add_health_unit(
     id: web::Path<Uuid>,
     health_units: web::Json<AddHealthUnitDto>,
 ) -> Result<HttpResponse, AppError> {
-    service.add_health_unit(id.into_inner(), health_units.into_inner()).await
+    service
+        .add_health_unit(id.into_inner(), health_units.into_inner())
+        .await
 }
 
 pub async fn delete_health_unit(

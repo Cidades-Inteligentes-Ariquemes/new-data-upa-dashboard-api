@@ -1,10 +1,10 @@
-use actix_web::{web, HttpResponse};
 use actix_multipart::Multipart;
+use actix_web::{web, HttpResponse};
 use futures::StreamExt;
 use std::io::Write;
 
-use crate::AppError;
 use crate::application::prediction_service::PredictionService;
+use crate::AppError;
 
 pub async fn predict(
     service: web::Data<PredictionService>,
@@ -12,11 +12,15 @@ pub async fn predict(
 ) -> Result<HttpResponse, AppError> {
     // Extrair o arquivo da requisição
     let mut image_data = Vec::new();
-    
+
     while let Some(item) = payload.next().await {
         let mut field = match item {
             Ok(f) => f,
-            Err(_) => return Err(AppError::BadRequest("Erro ao processar o formulário multipart".to_string())),
+            Err(_) => {
+                return Err(AppError::BadRequest(
+                    "Erro ao processar o formulário multipart".to_string(),
+                ))
+            }
         };
 
         if field.name() == Some("file") {
@@ -24,7 +28,9 @@ pub async fn predict(
             while let Some(chunk) = field.next().await {
                 let data = match chunk {
                     Ok(d) => d,
-                    Err(_) => return Err(AppError::BadRequest("Erro ao ler o arquivo".to_string())),
+                    Err(_) => {
+                        return Err(AppError::BadRequest("Erro ao ler o arquivo".to_string()))
+                    }
                 };
                 image_data.write_all(&data).unwrap();
             }
@@ -46,11 +52,15 @@ pub async fn detect_breast_cancer(
 ) -> Result<HttpResponse, AppError> {
     // Extrair o arquivo da requisição
     let mut image_data = Vec::new();
-    
+
     while let Some(item) = payload.next().await {
         let mut field = match item {
             Ok(f) => f,
-            Err(_) => return Err(AppError::BadRequest("Erro ao processar o formulário multipart".to_string())),
+            Err(_) => {
+                return Err(AppError::BadRequest(
+                    "Erro ao processar o formulário multipart".to_string(),
+                ))
+            }
         };
 
         if field.name() == Some("file") {
@@ -58,7 +68,9 @@ pub async fn detect_breast_cancer(
             while let Some(chunk) = field.next().await {
                 let data = match chunk {
                     Ok(d) => d,
-                    Err(_) => return Err(AppError::BadRequest("Erro ao ler o arquivo".to_string())),
+                    Err(_) => {
+                        return Err(AppError::BadRequest("Erro ao ler o arquivo".to_string()))
+                    }
                 };
                 image_data.write_all(&data).unwrap();
             }
@@ -80,11 +92,15 @@ pub async fn predict_tuberculosis(
 ) -> Result<HttpResponse, AppError> {
     // Extrair o arquivo da requisição
     let mut image_data = Vec::new();
-    
+
     while let Some(item) = payload.next().await {
         let mut field = match item {
             Ok(f) => f,
-            Err(_) => return Err(AppError::BadRequest("Erro ao processar o formulário multipart".to_string())),
+            Err(_) => {
+                return Err(AppError::BadRequest(
+                    "Erro ao processar o formulário multipart".to_string(),
+                ))
+            }
         };
 
         if field.name() == Some("file") {
@@ -92,7 +108,9 @@ pub async fn predict_tuberculosis(
             while let Some(chunk) = field.next().await {
                 let data = match chunk {
                     Ok(d) => d,
-                    Err(_) => return Err(AppError::BadRequest("Erro ao ler o arquivo".to_string())),
+                    Err(_) => {
+                        return Err(AppError::BadRequest("Erro ao ler o arquivo".to_string()))
+                    }
                 };
                 image_data.write_all(&data).unwrap();
             }
@@ -108,18 +126,21 @@ pub async fn predict_tuberculosis(
     service.predict_tuberculosis(image_data).await
 }
 
-
 pub async fn predict_osteoporosis(
     service: web::Data<PredictionService>,
     mut payload: Multipart,
 ) -> Result<HttpResponse, AppError> {
     // Extrair o arquivo da requisição
     let mut image_data = Vec::new();
-    
+
     while let Some(item) = payload.next().await {
         let mut field = match item {
             Ok(f) => f,
-            Err(_) => return Err(AppError::BadRequest("Erro ao processar o formulário multipart".to_string())),
+            Err(_) => {
+                return Err(AppError::BadRequest(
+                    "Erro ao processar o formulário multipart".to_string(),
+                ))
+            }
         };
 
         if field.name() == Some("file") {
@@ -127,7 +148,9 @@ pub async fn predict_osteoporosis(
             while let Some(chunk) = field.next().await {
                 let data = match chunk {
                     Ok(d) => d,
-                    Err(_) => return Err(AppError::BadRequest("Erro ao ler o arquivo".to_string())),
+                    Err(_) => {
+                        return Err(AppError::BadRequest("Erro ao ler o arquivo".to_string()))
+                    }
                 };
                 image_data.write_all(&data).unwrap();
             }

@@ -1,9 +1,8 @@
-use actix_web::{web, HttpResponse};
 use crate::{
     application::auth_pronto_service::AuthProntoService,
-    domain::models::auth_pronto::UserLoginPronto,
-    AppError,
+    domain::models::auth_pronto::UserLoginPronto, AppError,
 };
+use actix_web::{web, HttpResponse};
 
 pub async fn login_pronto(
     service: web::Data<AuthProntoService>,

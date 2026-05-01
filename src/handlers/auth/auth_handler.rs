@@ -1,9 +1,5 @@
+use crate::{application::auth_service::AuthService, domain::models::auth::LoginDto, AppError};
 use actix_web::{web, HttpResponse};
-use crate::{
-    application::auth_service::AuthService,
-    domain::models::auth::LoginDto,
-    AppError,
-};
 
 pub async fn login(
     service: web::Data<AuthService>,
