@@ -24,9 +24,12 @@ impl<R: AuditRepository> InformationService<R> {
         path: Option<String>,
         date_of_request: Option<String>,
     ) -> Result<HttpResponse, AppError> {
-        
         // Obter os registros de auditoria com filtros
-        let (audits, total_records) = match self.audit_repository.get_audits(page, email, path, date_of_request).await {
+        let (audits, total_records) = match self
+            .audit_repository
+            .get_audits(page, email, path, date_of_request)
+            .await
+        {
             Ok(result) => result,
             Err(err) => {
                 error!("Error retrieving audits: {}", err);
@@ -51,16 +54,14 @@ impl<R: AuditRepository> InformationService<R> {
             records_per_page,
         };
 
-        let response = AuditResponse {
-            audits,
-            pagination,
-        };
+        let response = AuditResponse { audits, pagination };
 
         // Retornar resposta formatada usando ApiResponse
         Ok(ApiResponse::success(json!({
             "audits": response.audits,
             "pagination": response.pagination,
-        })).into_response())
+        }))
+        .into_response())
     }
 
     pub async fn get_available_data(&self) -> Result<HttpResponse, AppError> {
@@ -81,7 +82,8 @@ impl<R: AuditRepository> InformationService<R> {
                 "method": available_data.method,
                 "date_of_request": available_data.date_of_request
             }
-        })).into_response())
+        }))
+        .into_response())
     }
 
     pub async fn get_all_audits(&self) -> Result<HttpResponse, AppError> {

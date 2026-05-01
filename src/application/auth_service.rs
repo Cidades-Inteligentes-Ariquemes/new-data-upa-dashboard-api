@@ -1,16 +1,13 @@
-use actix_web::web;
-use actix_web::HttpResponse;
 use crate::{
-    utils::error::AppError,
+    adapters::{password::PasswordEncryptorPort, token::TokenGeneratorPort},
     domain::models::auth::{LoginDto, LoginResponse},
+    domain::repositories::user::UserRepository,
     infrastructure::repositories::user_repository::PgUserRepository,
     utils::config_env::Config,
-    domain::repositories::user::UserRepository,
-    adapters::{
-        password::PasswordEncryptorPort,
-        token::TokenGeneratorPort,
-    },
+    utils::error::AppError,
 };
+use actix_web::web;
+use actix_web::HttpResponse;
 
 pub struct AuthService {
     repo: web::Data<PgUserRepository>,
@@ -26,16 +23,15 @@ impl AuthService {
         password_encryptor: Box<dyn PasswordEncryptorPort>,
         token_generator: Box<dyn TokenGeneratorPort>,
     ) -> Self {
-        Self { 
-            repo, 
-            config, 
+        Self {
+            repo,
+            config,
             password_encryptor,
             token_generator,
         }
     }
 
     pub async fn login(&self, credentials: LoginDto) -> Result<HttpResponse, AppError> {
-
         // Busca o usuário
         let user = match self.repo.find_by_email(&credentials.email).await {
             Ok(Some(user)) => {
@@ -43,25 +39,27 @@ impl AuthService {
                     return Err(AppError::Unauthorized("User is disabled".into()));
                 }
                 user
-            },
+            }
             Ok(None) => {
                 return Err(AppError::Unauthorized("Invalid credentials".into()));
-            },
+            }
             Err(_) => {
                 return Err(AppError::InternalServerError);
             }
         };
 
         // Verifica a senha
-        if !self.password_encryptor.verify_password(&user.password, &credentials.password)
-            .map_err(|_| {
-                AppError::InternalServerError
-            })? {
+        if !self
+            .password_encryptor
+            .verify_password(&user.password, &credentials.password)
+            .map_err(|_| AppError::InternalServerError)?
+        {
             return Err(AppError::Unauthorized("Invalid credentials".into()));
         }
 
         // Gera o token JWT
-        let token = self.token_generator
+        let token = self
+            .token_generator
             .generate_token(
                 user.id.to_string(),
                 user.full_name.clone(),
@@ -71,9 +69,7 @@ impl AuthService {
                 user.allowed_health_units.clone(),
                 &self.config.jwt_secret,
             )
-            .map_err(|_| {
-                AppError::InternalServerError
-            })?;
+            .map_err(|_| AppError::InternalServerError)?;
 
         let response = LoginResponse {
             token,

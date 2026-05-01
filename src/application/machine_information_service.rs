@@ -1,9 +1,9 @@
-use actix_web::{HttpResponse};
-use log::error;
-use serde_json::json;
-use crate::AppError;
 use crate::domain::models::machine_information::SystemMetrics;
 use crate::utils::response::ApiResponse;
+use crate::AppError;
+use actix_web::HttpResponse;
+use log::error;
+use serde_json::json;
 
 pub struct MachineInformationService;
 

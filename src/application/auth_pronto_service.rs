@@ -3,12 +3,12 @@ use log::{error, info};
 use polars::prelude::PlIndexSet;
 
 use crate::{
-    utils::error::AppError,
-    domain::models::auth_pronto::{UserLoginPronto, LoginProntoResponse},
-    domain::repositories::auth_pronto::AuthProntoRepository,
+    adapters::password::pronto_password::{has_doctor_profile, verify_pronto_password},
     adapters::token::TokenGeneratorPort,
-    adapters::password::pronto_password::{verify_pronto_password, has_doctor_profile},
+    domain::models::auth_pronto::{LoginProntoResponse, UserLoginPronto},
+    domain::repositories::auth_pronto::AuthProntoRepository,
     utils::config_env::Config,
+    utils::error::AppError,
     utils::response::ApiResponse,
 };
 
@@ -24,19 +24,26 @@ impl AuthProntoService {
         config: web::Data<Config>,
         token_generator: Box<dyn TokenGeneratorPort>,
     ) -> Self {
-        Self { 
-            repo, 
-            config, 
+        Self {
+            repo,
+            config,
             token_generator,
         }
     }
 
-    pub async fn login_pronto(&self, credentials: UserLoginPronto) -> Result<HttpResponse, AppError> {
-        let user = match self.repo.get_user_pronto_by_username_with_fullname(&credentials.username).await {
+    pub async fn login_pronto(
+        &self,
+        credentials: UserLoginPronto,
+    ) -> Result<HttpResponse, AppError> {
+        let user = match self
+            .repo
+            .get_user_pronto_by_username_with_fullname(&credentials.username)
+            .await
+        {
             Ok(Some(user)) => user,
             Ok(None) => {
                 return Err(AppError::BadRequest("User not found".into()));
-            },
+            }
             Err(e) => {
                 error!("Error fetching user from Pronto: {:?}", e);
                 return Err(AppError::InternalServerError);
@@ -47,7 +54,6 @@ impl AuthProntoService {
             return Err(AppError::Unauthorized("Incorrect password".into()));
         }
 
-
         let mut units_id = Vec::new();
 
         for unit in &user {
@@ -57,12 +63,16 @@ impl AuthProntoService {
         let units_id: PlIndexSet<i32> = units_id.into_iter().collect();
 
         // Busca os perfis do usuário
-        let profiles = match self.repo.get_user_profiles_by_login_and_unit_id(&user[0].login_id, user[0].unit_id).await {
+        let profiles = match self
+            .repo
+            .get_user_profiles_by_login_and_unit_id(&user[0].login_id, user[0].unit_id)
+            .await
+        {
             Ok(profiles) if !profiles.is_empty() => profiles,
             Ok(_) => {
                 println!("No profiles found for user: {:?}", user);
                 return Err(AppError::BadRequest("Profile not found".into()));
-            },
+            }
             Err(e) => {
                 error!("Error fetching profiles: {:?}", e);
                 return Err(AppError::InternalServerError);
@@ -71,15 +81,18 @@ impl AuthProntoService {
 
         // Verifica se tem perfil de médico
         if !has_doctor_profile(&profiles) {
-            return Err(AppError::Forbidden("User does not have the required profile".into()));
+            return Err(AppError::Forbidden(
+                "User does not have the required profile".into(),
+            ));
         }
 
         // Gera o token JWT
-        let token = self.token_generator
+        let token = self
+            .token_generator
             .generate_token(
                 user[0].userid.to_string(),
                 user[0].fullname.clone(),
-                String::from(""),  // Email vazio pois não está no banco Pronto
+                String::from(""), // Email vazio pois não está no banco Pronto
                 String::from("Usuario Comum"),
                 vec![String::from("xpredict")],
                 units_id.iter().map(|&id| id as i64).collect::<Vec<i64>>(),
@@ -91,7 +104,7 @@ impl AuthProntoService {
             })?;
 
         info!("User logged in successfully by Pronto");
-        
+
         let response = LoginProntoResponse {
             token,
             user_id: user[0].userid.to_string(),
