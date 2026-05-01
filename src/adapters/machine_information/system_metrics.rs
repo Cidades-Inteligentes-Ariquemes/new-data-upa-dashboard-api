@@ -1,13 +1,8 @@
-use sysinfo::System;
-use std::time::Duration;
-use std::thread;
+use crate::domain::models::machine_information::{CpuInfo, DiskInfo, MemoryInfo, SystemMetrics};
 use reqwest;
-use crate::domain::models::machine_information::{
-    DiskInfo,
-    SystemMetrics,
-    MemoryInfo,
-    CpuInfo,
-};
+use std::thread;
+use std::time::Duration;
+use sysinfo::System;
 
 impl SystemMetrics {
     pub fn new() -> Self {
@@ -97,7 +92,10 @@ impl SystemMetrics {
     pub async fn get_external_ip() -> Result<String, reqwest::Error> {
         let response = reqwest::get("https://api.ipify.org?format=json").await?;
         let json: serde_json::Value = response.json().await?;
-        Ok(json["ip"].as_str().unwrap_or("Unable to obtain IP").to_string())
+        Ok(json["ip"]
+            .as_str()
+            .unwrap_or("Unable to obtain IP")
+            .to_string())
     }
 
     pub fn calculate_uptime() -> u64 {

@@ -1,18 +1,18 @@
-use jsonwebtoken::{encode, EncodingKey, Header, errors::Error as JwtError};
-use std::time::{SystemTime, UNIX_EPOCH};
 use crate::domain::models::auth::Claims;
+use jsonwebtoken::{encode, errors::Error as JwtError, EncodingKey, Header};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // Interface para geração de tokens
 pub trait TokenGeneratorPort: Send + Sync {
     fn generate_token(
-        &self, 
-        user_id: String, 
-        full_name: String, 
-        email: String, 
-        profile: String, 
-        allowed_applications: Vec<String>, 
-        allowed_health_units: Vec<i64>, 
-        secret: &str
+        &self,
+        user_id: String,
+        full_name: String,
+        email: String,
+        profile: String,
+        allowed_applications: Vec<String>,
+        allowed_health_units: Vec<i64>,
+        secret: &str,
     ) -> Result<String, JwtError>;
 }
 
@@ -35,12 +35,13 @@ impl TokenGeneratorPort for JwtTokenGenerator {
         profile: String,
         allowed_applications: Vec<String>,
         allowed_health_units: Vec<i64>,
-        secret: &str
+        secret: &str,
     ) -> Result<String, JwtError> {
         let expiration = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_secs() as usize + 24 * 3600;
+            .as_secs() as usize
+            + 24 * 3600;
 
         let claims = Claims {
             user_id,
