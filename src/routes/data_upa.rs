@@ -63,6 +63,18 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .route(web::get().to(visualization_data_handler::heat_map_with_the_number_of_medical_appointments_by_neighborhood))
             )
             .service(
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-appointments-per-cid")
+                    .route(web::get().to(visualization_data_handler::appointments_per_cid))
+            )
+            .service(
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-appointments-per-classification")
+                    .route(web::get().to(visualization_data_handler::appointments_per_classification))
+            )
+            .service(
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-medical-appointments-per-classification")
+                    .route(web::get().to(visualization_data_handler::medical_appointments_per_classification))
+            )
+            .service(
                 web::resource("/available-health-units")
                     .route(web::get().to(data_upa_handler::available_health_units))
             )

@@ -1299,7 +1299,6 @@ pub fn extract_keyword_hybrid(df: &DataFrame) -> PolarsResult<DataFrame> {
 }
 
 /// Função para diagnosticar_doenca_com_pontuacao com detecção mais precisa
-
 fn diagnosticar_doenca_com_pontuacao(sintomas: &str) -> (String, f64) {
     let sintomas_normalizados = sintomas.to_lowercase();
 
@@ -1528,7 +1527,7 @@ pub fn convert_keys_to_str(data: Value) -> Value {
         Value::Array(arr) => {
             let new_arr = arr
                 .into_iter()
-                .map(|item| convert_keys_to_str(item))
+                .map(convert_keys_to_str)
                 .collect();
             Value::Array(new_arr)
         }

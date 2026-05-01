@@ -131,7 +131,7 @@ pub fn routes_for_users_common(path: &str) -> bool {
     ];
 
     // Verifica rotas estáticas OU rotas dinâmicas de usuário
-    static_routes.iter().any(|route| path == *route)
+    static_routes.contains(&path)
         || (path.starts_with("/api/data/user/")
             && dynamic_endpoints
                 .iter()

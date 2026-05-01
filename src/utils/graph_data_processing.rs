@@ -3,6 +3,8 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::error::Error;
 
+type DiseaseLocationMap = HashMap<String, HashMap<String, HashMap<String, (f64, f64, i64)>>>;
+
 pub struct DataProcessingForGraphPlotting;
 
 impl DataProcessingForGraphPlotting {
@@ -495,27 +497,27 @@ impl DataProcessingForGraphPlotting {
             let hour = horas[i];
             let competencia = &competencias[i];
 
-            let group = if hour >= 0 && hour < 2 {
+            let group = if (0..2).contains(&hour) {
                 "00h-02h"
-            } else if hour >= 2 && hour < 4 {
+            } else if (2..4).contains(&hour) {
                 "02h-04h"
-            } else if hour >= 4 && hour < 6 {
+            } else if (4..6).contains(&hour) {
                 "04h-06h"
-            } else if hour >= 6 && hour < 8 {
+            } else if (6..8).contains(&hour) {
                 "06h-08h"
-            } else if hour >= 8 && hour < 10 {
+            } else if (8..10).contains(&hour) {
                 "08h-10h"
-            } else if hour >= 10 && hour < 12 {
+            } else if (10..12).contains(&hour) {
                 "10h-12h"
-            } else if hour >= 12 && hour < 14 {
+            } else if (12..14).contains(&hour) {
                 "12h-14h"
-            } else if hour >= 14 && hour < 16 {
+            } else if (14..16).contains(&hour) {
                 "14h-16h"
-            } else if hour >= 16 && hour < 18 {
+            } else if (16..18).contains(&hour) {
                 "16h-18h"
-            } else if hour >= 18 && hour < 20 {
+            } else if (18..20).contains(&hour) {
                 "18h-20h"
-            } else if hour >= 20 && hour < 22 {
+            } else if (20..22).contains(&hour) {
                 "20h-22h"
             } else {
                 "22h-24h"
@@ -938,10 +940,7 @@ impl DataProcessingForGraphPlotting {
 
         // Estrutura para armazenar dados por queixa, competência e bairro
         // Uma abordagem alternativa sem usar f64 como chave
-        let mut dados_por_queixa: HashMap<
-            String,
-            HashMap<String, HashMap<String, (f64, f64, i64)>>,
-        > = HashMap::new();
+        let mut dados_por_queixa: DiseaseLocationMap = HashMap::new();
 
         // Processar os dados
         for (comp, bairro, queixa, lat, long) in dados_validos {
@@ -1054,4 +1053,159 @@ impl DataProcessingForGraphPlotting {
 
         Ok(json!(organized_data))
     }
+
+    pub async fn create_dict_to_number_of_appointments_per_cid(
+        &self,
+        df: &DataFrame,
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
+        let competencias = df
+            .column("ifrocompetencia")?
+            .str()?
+            .into_iter()
+            .map(|opt_s| opt_s.unwrap_or("").to_string())
+            .collect::<Vec<String>>();
+
+        let cids = df
+            .column("ifrocidcd")?
+            .str()?
+            .into_iter()
+            .map(|opt_s| opt_s.unwrap_or("").to_string())
+            .collect::<Vec<String>>();
+
+        if competencias.len() != cids.len() {
+            return Err(Box::<dyn Error + Send + Sync>::from(
+                "Tamanhos de colunas incompatíveis",
+            ));
+        }
+
+        let mut por_cid: HashMap<String, HashMap<String, i64>> = HashMap::new();
+        let mut informado: HashMap<String, i64> = HashMap::new();
+        let mut nao_informado: HashMap<String, i64> = HashMap::new();
+        informado.insert("todos".to_string(), 0);
+        nao_informado.insert("todos".to_string(), 0);
+
+        for i in 0..competencias.len() {
+            let cid = &cids[i];
+            let comp = &competencias[i];
+
+            if cid.is_empty() {
+                *nao_informado.entry(comp.clone()).or_insert(0) += 1;
+                *nao_informado.entry("todos".to_string()).or_insert(0) += 1;
+            } else {
+                *informado.entry(comp.clone()).or_insert(0) += 1;
+                *informado.entry("todos".to_string()).or_insert(0) += 1;
+
+                let cid_map = por_cid.entry(cid.clone()).or_default();
+                *cid_map.entry(comp.clone()).or_insert(0) += 1;
+                *cid_map.entry("todos".to_string()).or_insert(0) += 1;
+            }
+        }
+
+        let mut result = HashMap::new();
+        result.insert("por_cid".to_string(), json!(por_cid));
+        result.insert("informado".to_string(), json!(informado));
+        result.insert("nao_informado".to_string(), json!(nao_informado));
+
+        Ok(json!(result))
+    }
+
+    pub async fn create_dict_to_number_of_appointments_per_classification(
+        &self,
+        df: &DataFrame,
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
+        let competencias = df
+            .column("ifrocompetencia")?
+            .str()?
+            .into_iter()
+            .map(|opt_s| opt_s.unwrap_or("").to_string())
+            .collect::<Vec<String>>();
+
+        let classificacoes = df
+            .column("ifroclassificacao")?
+            .str()?
+            .into_iter()
+            .map(|opt_s| opt_s.unwrap_or("").to_string())
+            .collect::<Vec<String>>();
+
+        if competencias.len() != classificacoes.len() {
+            return Err(Box::<dyn Error + Send + Sync>::from(
+                "Tamanhos de colunas incompatíveis",
+            ));
+        }
+
+        Ok(aggregate_by_classification(&competencias, &classificacoes))
+    }
+
+    pub async fn create_dict_to_number_of_medical_appointments_per_classification(
+        &self,
+        df: &DataFrame,
+    ) -> Result<Value, Box<dyn Error + Send + Sync>> {
+        let df_medical = df
+            .clone()
+            .lazy()
+            .filter(
+                (col("ifroprofissionalcbods")
+                    .eq(lit("MEDICO CLINICO"))
+                    .or(col("ifroprofissionalcbods").eq(lit("MEDICO CIRURGIAO GERAL"))))
+                .and(col("ifrotabelanome").eq(lit("ConsultaMedica"))),
+            )
+            .collect()?;
+
+        let competencias = df_medical
+            .column("ifrocompetencia")?
+            .str()?
+            .into_iter()
+            .map(|opt_s| opt_s.unwrap_or("").to_string())
+            .collect::<Vec<String>>();
+
+        let classificacoes = df_medical
+            .column("ifroclassificacao")?
+            .str()?
+            .into_iter()
+            .map(|opt_s| opt_s.unwrap_or("").to_string())
+            .collect::<Vec<String>>();
+
+        Ok(aggregate_by_classification(&competencias, &classificacoes))
+    }
+}
+
+fn aggregate_by_classification(competencias: &[String], classificacoes: &[String]) -> Value {
+    let known_classes = [
+        "NaoUrgente",
+        "PoucoUrgente",
+        "Urgente",
+        "MuitoUrgente",
+        "Emergencia",
+    ];
+
+    let mut by_class: HashMap<String, HashMap<String, i64>> = HashMap::new();
+    let mut todos: HashMap<String, i64> = HashMap::new();
+    todos.insert("todos".to_string(), 0);
+
+    for class in &known_classes {
+        let mut inner = HashMap::new();
+        inner.insert("todos".to_string(), 0_i64);
+        by_class.insert((*class).to_string(), inner);
+    }
+
+    for (class, comp) in classificacoes.iter().zip(competencias.iter()) {
+        if class.is_empty() {
+            continue;
+        }
+
+        let class_map = by_class.entry(class.clone()).or_default();
+        *class_map.entry(comp.clone()).or_insert(0) += 1;
+        *class_map.entry("todos".to_string()).or_insert(0) += 1;
+
+        *todos.entry(comp.clone()).or_insert(0) += 1;
+        *todos.entry("todos".to_string()).or_insert(0) += 1;
+    }
+
+    let mut result = HashMap::new();
+    result.insert("todos".to_string(), json!(todos));
+    for (class, comp_counts) in by_class {
+        result.insert(class, json!(comp_counts));
+    }
+
+    json!(result)
 }

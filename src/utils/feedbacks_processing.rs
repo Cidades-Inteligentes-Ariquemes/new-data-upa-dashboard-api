@@ -118,20 +118,3 @@ pub struct TuberculosisStats {
     pub total_quantity_correct: usize,
 }
 
-impl Default for DiseaseStats {
-    fn default() -> Self {
-        Self {
-            total_quantity: 0,
-            total_quantity_correct: 0,
-        }
-    }
-}
-
-impl Default for OsteoporosisStats {
-    fn default() -> Self {
-        Self {
-            total_quantity: 0,
-            total_quantity_correct: 0,
-        }
-    }
-}
