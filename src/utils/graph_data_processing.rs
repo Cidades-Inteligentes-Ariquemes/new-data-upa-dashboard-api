@@ -1,9 +1,39 @@
+use chrono::{Duration, NaiveDate};
 use polars::prelude::*;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::error::Error;
 
 type DiseaseLocationMap = HashMap<String, HashMap<String, HashMap<String, (f64, f64, i64)>>>;
+
+const DATE_FMT: &str = "%Y-%m-%d";
+const KEY_60: &str = "ultimos_60_dias";
+const KEY_90: &str = "ultimos_90_dias";
+
+/// Calcula `(cutoff_60, cutoff_90)` a partir da maior data presente no vetor.
+/// Datas inválidas/vazias são ignoradas. Retorna `None` se nenhuma data for parseável.
+fn compute_recent_cutoffs(dates: &[String]) -> Option<(NaiveDate, NaiveDate)> {
+    let max_date = dates
+        .iter()
+        .filter_map(|s| NaiveDate::parse_from_str(s, DATE_FMT).ok())
+        .max()?;
+    Some((max_date - Duration::days(60), max_date - Duration::days(90)))
+}
+
+/// Retorna `(within_60, within_90)` para uma string de data; `(false, false)` se não parsear.
+fn date_within(date_str: &str, cutoff_60: &NaiveDate, cutoff_90: &NaiveDate) -> (bool, bool) {
+    match NaiveDate::parse_from_str(date_str, DATE_FMT) {
+        Ok(d) => (d >= *cutoff_60, d >= *cutoff_90),
+        Err(_) => (false, false),
+    }
+}
+
+/// Garante que `KEY_60` e `KEY_90` existam no mapa (insere 0 se ausentes).
+/// Idempotente — pode ser chamado múltiplas vezes sem efeito colateral.
+fn ensure_recent_keys(map: &mut HashMap<String, i64>) {
+    map.entry(KEY_60.to_string()).or_insert(0);
+    map.entry(KEY_90.to_string()).or_insert(0);
+}
 
 pub struct DataProcessingForGraphPlotting;
 
@@ -1072,32 +1102,68 @@ impl DataProcessingForGraphPlotting {
             .map(|opt_s| opt_s.unwrap_or("").to_string())
             .collect::<Vec<String>>();
 
-        if competencias.len() != cids.len() {
+        let dates = df
+            .column("ifrodataatendimento")?
+            .str()?
+            .into_iter()
+            .map(|opt_s| opt_s.unwrap_or("").to_string())
+            .collect::<Vec<String>>();
+
+        if competencias.len() != cids.len() || competencias.len() != dates.len() {
             return Err(Box::<dyn Error + Send + Sync>::from(
                 "Tamanhos de colunas incompatíveis",
             ));
         }
 
+        let cutoffs = compute_recent_cutoffs(&dates);
+
         let mut por_cid: HashMap<String, HashMap<String, i64>> = HashMap::new();
         let mut informado: HashMap<String, i64> = HashMap::new();
         let mut nao_informado: HashMap<String, i64> = HashMap::new();
         informado.insert("todos".to_string(), 0);
+        informado.insert(KEY_60.to_string(), 0);
+        informado.insert(KEY_90.to_string(), 0);
         nao_informado.insert("todos".to_string(), 0);
+        nao_informado.insert(KEY_60.to_string(), 0);
+        nao_informado.insert(KEY_90.to_string(), 0);
 
         for i in 0..competencias.len() {
             let cid = &cids[i];
             let comp = &competencias[i];
+            let (in_60, in_90) = match &cutoffs {
+                Some((c60, c90)) => date_within(&dates[i], c60, c90),
+                None => (false, false),
+            };
 
             if cid.is_empty() {
                 *nao_informado.entry(comp.clone()).or_insert(0) += 1;
                 *nao_informado.entry("todos".to_string()).or_insert(0) += 1;
+                if in_60 {
+                    *nao_informado.entry(KEY_60.to_string()).or_insert(0) += 1;
+                }
+                if in_90 {
+                    *nao_informado.entry(KEY_90.to_string()).or_insert(0) += 1;
+                }
             } else {
                 *informado.entry(comp.clone()).or_insert(0) += 1;
                 *informado.entry("todos".to_string()).or_insert(0) += 1;
+                if in_60 {
+                    *informado.entry(KEY_60.to_string()).or_insert(0) += 1;
+                }
+                if in_90 {
+                    *informado.entry(KEY_90.to_string()).or_insert(0) += 1;
+                }
 
                 let cid_map = por_cid.entry(cid.clone()).or_default();
+                ensure_recent_keys(cid_map);
                 *cid_map.entry(comp.clone()).or_insert(0) += 1;
                 *cid_map.entry("todos".to_string()).or_insert(0) += 1;
+                if in_60 {
+                    *cid_map.entry(KEY_60.to_string()).or_insert(0) += 1;
+                }
+                if in_90 {
+                    *cid_map.entry(KEY_90.to_string()).or_insert(0) += 1;
+                }
             }
         }
 
@@ -1127,13 +1193,24 @@ impl DataProcessingForGraphPlotting {
             .map(|opt_s| opt_s.unwrap_or("").to_string())
             .collect::<Vec<String>>();
 
-        if competencias.len() != classificacoes.len() {
+        let dates = df
+            .column("ifrodataatendimento")?
+            .str()?
+            .into_iter()
+            .map(|opt_s| opt_s.unwrap_or("").to_string())
+            .collect::<Vec<String>>();
+
+        if competencias.len() != classificacoes.len() || competencias.len() != dates.len() {
             return Err(Box::<dyn Error + Send + Sync>::from(
                 "Tamanhos de colunas incompatíveis",
             ));
         }
 
-        Ok(aggregate_by_classification(&competencias, &classificacoes))
+        Ok(aggregate_by_classification(
+            &competencias,
+            &classificacoes,
+            &dates,
+        ))
     }
 
     pub async fn create_dict_to_number_of_medical_appointments_per_classification(
@@ -1165,11 +1242,32 @@ impl DataProcessingForGraphPlotting {
             .map(|opt_s| opt_s.unwrap_or("").to_string())
             .collect::<Vec<String>>();
 
-        Ok(aggregate_by_classification(&competencias, &classificacoes))
+        let dates = df_medical
+            .column("ifrodataatendimento")?
+            .str()?
+            .into_iter()
+            .map(|opt_s| opt_s.unwrap_or("").to_string())
+            .collect::<Vec<String>>();
+
+        if competencias.len() != classificacoes.len() || competencias.len() != dates.len() {
+            return Err(Box::<dyn Error + Send + Sync>::from(
+                "Tamanhos de colunas incompatíveis",
+            ));
+        }
+
+        Ok(aggregate_by_classification(
+            &competencias,
+            &classificacoes,
+            &dates,
+        ))
     }
 }
 
-fn aggregate_by_classification(competencias: &[String], classificacoes: &[String]) -> Value {
+fn aggregate_by_classification(
+    competencias: &[String],
+    classificacoes: &[String],
+    dates: &[String],
+) -> Value {
     let known_classes = [
         "NaoUrgente",
         "PoucoUrgente",
@@ -1178,27 +1276,52 @@ fn aggregate_by_classification(competencias: &[String], classificacoes: &[String
         "Emergencia",
     ];
 
+    let cutoffs = compute_recent_cutoffs(dates);
+
     let mut by_class: HashMap<String, HashMap<String, i64>> = HashMap::new();
     let mut todos: HashMap<String, i64> = HashMap::new();
     todos.insert("todos".to_string(), 0);
+    todos.insert(KEY_60.to_string(), 0);
+    todos.insert(KEY_90.to_string(), 0);
 
     for class in &known_classes {
         let mut inner = HashMap::new();
         inner.insert("todos".to_string(), 0_i64);
+        inner.insert(KEY_60.to_string(), 0_i64);
+        inner.insert(KEY_90.to_string(), 0_i64);
         by_class.insert((*class).to_string(), inner);
     }
 
-    for (class, comp) in classificacoes.iter().zip(competencias.iter()) {
+    for i in 0..classificacoes.len() {
+        let class = &classificacoes[i];
         if class.is_empty() {
             continue;
         }
+        let comp = &competencias[i];
+        let (in_60, in_90) = match &cutoffs {
+            Some((c60, c90)) => date_within(&dates[i], c60, c90),
+            None => (false, false),
+        };
 
         let class_map = by_class.entry(class.clone()).or_default();
+        ensure_recent_keys(class_map);
         *class_map.entry(comp.clone()).or_insert(0) += 1;
         *class_map.entry("todos".to_string()).or_insert(0) += 1;
+        if in_60 {
+            *class_map.entry(KEY_60.to_string()).or_insert(0) += 1;
+        }
+        if in_90 {
+            *class_map.entry(KEY_90.to_string()).or_insert(0) += 1;
+        }
 
         *todos.entry(comp.clone()).or_insert(0) += 1;
         *todos.entry("todos".to_string()).or_insert(0) += 1;
+        if in_60 {
+            *todos.entry(KEY_60.to_string()).or_insert(0) += 1;
+        }
+        if in_90 {
+            *todos.entry(KEY_90.to_string()).or_insert(0) += 1;
+        }
     }
 
     let mut result = HashMap::new();

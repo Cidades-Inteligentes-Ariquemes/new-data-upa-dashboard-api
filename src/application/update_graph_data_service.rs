@@ -257,7 +257,7 @@ impl UpdateGraphDataService {
                 // Atendimentos por CID
                 HashMap::from([
                     ("table", Value::String("bpa".to_string())),
-                    ("column", json!(["ifrocompetencia", "ifrocidcd"])),
+                    ("column", json!(["ifrocompetencia", "ifrocidcd", "ifrodataatendimento"])),
                     (
                         "identifier",
                         Value::String("number_of_appointments_per_cid".to_string()),
@@ -274,7 +274,7 @@ impl UpdateGraphDataService {
                 // Atendimentos por classificação
                 HashMap::from([
                     ("table", Value::String("bpa".to_string())),
-                    ("column", json!(["ifrocompetencia", "ifroclassificacao"])),
+                    ("column", json!(["ifrocompetencia", "ifroclassificacao", "ifrodataatendimento"])),
                     (
                         "identifier",
                         Value::String("number_of_appointments_per_classification".to_string()),
@@ -299,7 +299,8 @@ impl UpdateGraphDataService {
                             "ifrocompetencia",
                             "ifroclassificacao",
                             "ifroprofissionalcbods",
-                            "ifrotabelanome"
+                            "ifrotabelanome",
+                            "ifrodataatendimento"
                         ]),
                     ),
                     (
