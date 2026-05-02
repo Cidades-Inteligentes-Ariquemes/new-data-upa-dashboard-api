@@ -1,0 +1,1005 @@
+{
+  "info": {
+    "_postman_id": "bf48e893-1b63-43d1-8854-5aef43ab25f7",
+    "name": "Dados UPA Ariquemes - API",
+    "description": "API desenvolvida para receber, processar e gerenciar dados provenientes da Unidade de Pronto Atendimento (UPA) de Ariquemes. O objetivo principal é fornecer dados processados e tratados para que os clientes possam plotar gráficos em uma aplicação web, além de gerenciar o controle de usuários da aplicação.\n\nVariáveis de ambiente esperadas: `baseUrl`, `api_key`, `token`, `user_id`, `unit_id`, `year`. Importe o environment **Dados UPA Ariquemes - Cloudflare** para usar o tunnel público (`https://forecast-api.nexuslearn.com.br`).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "29286933"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "users",
+      "description": "Rotas de autenticação, gestão de usuários e feedbacks. Todas exigem o header `api_key`. Login não exige token (gera o token); rotas de verificação por código também são públicas.",
+      "item": [
+        {
+          "name": "login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.token) {",
+                  "    pm.environment.set('token', body.token);",
+                  "    console.log('Token salvo no environment.');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"diogoifroads@gmail.com\",\n  \"password\": \"123456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Autentica um usuário com email e senha. Em caso de sucesso, o token retornado é salvo automaticamente na variável `{{token}}` do environment."
+          },
+          "response": []
+        },
+        {
+          "name": "login-pronto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.token) {",
+                  "    pm.environment.set('token', body.token);",
+                  "    console.log('Token salvo no environment.');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"CHARLES\",\n  \"password\": \"ch123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login-pronto",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login-pronto"]
+            },
+            "description": "Autentica um usuário via sistema PRONTO (SQL Server). O token retornado é salvo automaticamente na variável `{{token}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "get-users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Retorna todos os usuários cadastrados na aplicação. Requer perfil Administrador."
+          },
+          "response": []
+        },
+        {
+          "name": "get-feedbacks",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/feedbacks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "feedbacks"]
+            },
+            "description": "Retorna todos os feedbacks enviados pelos usuários sobre as predições. Requer perfil Administrador."
+          },
+          "response": []
+        },
+        {
+          "name": "get-user-by-id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{user_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            },
+            "description": "Retorna um usuário específico pelo ID."
+          },
+          "response": []
+        },
+        {
+          "name": "add-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"John Doe Ribeiro Santos\",\n  \"email\": \"kh@gmail.com\",\n  \"password\": \"123\",\n  \"profile\": \"Usuario Comum\",\n  \"allowed_applications\": [\"upavision\"],\n  \"allowed_health_units\": [2]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Adiciona um novo usuário. Requer perfil Administrador."
+          },
+          "response": []
+        },
+        {
+          "name": "update-user-by-id",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Diogo Ribeiro\",\n  \"email\": \"diogoifroads@gmail.com\",\n  \"profile\": \"Administrador\",\n  \"allowed_applications\": [\"upavision\"],\n  \"enabled\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{user_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            },
+            "description": "Atualiza os dados de um usuário (exceto a senha)."
+          },
+          "response": []
+        },
+        {
+          "name": "delete-user-by-id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{user_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{user_id}}"]
+            },
+            "description": "Remove um usuário específico pelo ID."
+          },
+          "response": []
+        },
+        {
+          "name": "update-password-by-user-admin",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"diogoifroads@gmail.com\",\n  \"new_password\": \"123456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{user_id}}/update-password-by-admin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{user_id}}", "update-password-by-admin"]
+            },
+            "description": "Administrador atualiza a senha de um usuário."
+          },
+          "response": []
+        },
+        {
+          "name": "update-password-by-user-common",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"123\",\n  \"new_password\": \"123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/update-password-by-user-common/{{user_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "update-password-by-user-common", "{{user_id}}"]
+            },
+            "description": "Usuário comum atualiza sua própria senha (precisa informar a senha atual)."
+          },
+          "response": []
+        },
+        {
+          "name": "update-enabled-to-user",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{user_id}}/update-enabled",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{user_id}}", "update-enabled"]
+            },
+            "description": "Habilita ou desabilita um usuário."
+          },
+          "response": []
+        },
+        {
+          "name": "add-application",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"applications_name\": [\"xpredict\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{user_id}}/applications",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{user_id}}", "applications"]
+            },
+            "description": "Adiciona uma ou mais aplicações ao usuário."
+          },
+          "response": []
+        },
+        {
+          "name": "delete-application-by-name",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{user_id}}/application/upavision",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{user_id}}", "application", "upavision"]
+            },
+            "description": "Remove uma aplicação do usuário pelo nome (último segmento do path)."
+          },
+          "response": []
+        },
+        {
+          "name": "add-health-unit",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"health_units\": [3]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{user_id}}/health-units",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{user_id}}", "health-units"]
+            },
+            "description": "Adiciona uma ou mais unidades de saúde ao usuário."
+          },
+          "response": []
+        },
+        {
+          "name": "delete-health-units",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{user_id}}/health-unit/{{unit_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{user_id}}", "health-unit", "{{unit_id}}"]
+            },
+            "description": "Remove uma unidade de saúde do usuário."
+          },
+          "response": []
+        },
+        {
+          "name": "send-code-verification",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/send-verification-code/diogoifroads@gmail.com",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "send-verification-code", "diogoifroads@gmail.com"]
+            },
+            "description": "Envia código de verificação para o email informado no path."
+          },
+          "response": []
+        },
+        {
+          "name": "resend-code-verification",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_verification\": \"87c9fccf-5343-49e3-9ba8-5b70fb42a519\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/resend-verification-code/diogoifroads@gmail.com",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "resend-verification-code", "diogoifroads@gmail.com"]
+            },
+            "description": "Reenvia código de verificação. Recebe o `id_verification` da tentativa anterior."
+          },
+          "response": []
+        },
+        {
+          "name": "confirm-code-verification",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_code\": 547570,\n  \"id_verification\": \"5b53127a-2389-4908-b399-e9a9979eb748\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/confirm-verification-code",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "confirm-verification-code"]
+            },
+            "description": "Confirma o código de verificação enviado por email."
+          },
+          "response": []
+        },
+        {
+          "name": "update-password-forgetting-user",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PATCH",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_password\": \"1234\",\n  \"id_verification\": \"87c9fccf-5343-49e3-9ba8-5b70fb42a519\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/update-password-for-forgetting-user/{{user_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "update-password-for-forgetting-user", "{{user_id}}"]
+            },
+            "description": "Reset de senha para usuário que esqueceu — exige `id_verification` previamente confirmado."
+          },
+          "response": []
+        },
+        {
+          "name": "add-feedback-respiratory-diseases",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_name\": \"Diogo Ribeiro\",\n  \"feedback\": \"sim\",\n  \"prediction_made\": \"pneumonia viral\",\n  \"correct_prediction\": \"pneumonia viral\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/feedback-respiratory-diseases",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "feedback-respiratory-diseases"]
+            },
+            "description": "Submete feedback sobre uma predição de doenças respiratórias."
+          },
+          "response": []
+        },
+        {
+          "name": "add-feedback-tuberculosis",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_name\": \"Diogo Ribeiro\",\n  \"feedback\": \"sim\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/feedback-tuberculosis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "feedback-tuberculosis"]
+            },
+            "description": "Submete feedback sobre uma predição de tuberculose."
+          },
+          "response": []
+        },
+        {
+          "name": "add-feedback-osteoporosis",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_name\": \"Diogo Ribeiro\",\n  \"feedback\": \"sim\",\n  \"prediction_made\": \"osteoporosis\",\n  \"correct_prediction\": \"osteoporosis\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/feedback-osteoporosis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "feedback-osteoporosis"]
+            },
+            "description": "Submete feedback sobre uma predição de osteoporose."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "graphs",
+      "description": "Endpoints de visualização — retornam dados já tratados para plotagem de gráficos. Todos sob `/api/data/user/{{user_id}}/unit/{{unit_id}}/...`.",
+      "item": [
+        {
+          "name": "number-of-appointments-per-month",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/number-of-appointments-per-month",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "number-of-appointments-per-month"]
+            },
+            "description": "Número de atendimentos por mês."
+          },
+          "response": []
+        },
+        {
+          "name": "number-of-appointments-per-year",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/number-of-appointments-per-year/{{year}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "number-of-appointments-per-year", "{{year}}"]
+            },
+            "description": "Número de atendimentos por mês para um ano específico."
+          },
+          "response": []
+        },
+        {
+          "name": "years-available-for-number-of-appointments-per-month",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/years-available-for-number-of-appointments-per-month",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "years-available-for-number-of-appointments-per-month"]
+            },
+            "description": "Lista os anos disponíveis para a consulta de atendimentos por mês."
+          },
+          "response": []
+        },
+        {
+          "name": "number-of-appointments-per-flow",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/number-of-appointments-per-flow",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "number-of-appointments-per-flow"]
+            },
+            "description": "Número de atendimentos por fluxo (Acolhimento, Procedimentos, Consultas Médicas)."
+          },
+          "response": []
+        },
+        {
+          "name": "number-of-appointments-per-cid",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/number-of-appointments-per-cid",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "number-of-appointments-per-cid"]
+            },
+            "description": "Número de atendimentos agrupados por CID."
+          },
+          "response": []
+        },
+        {
+          "name": "number-of-appointments-per-classification",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/number-of-appointments-per-classification",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "number-of-appointments-per-classification"]
+            },
+            "description": "Número de atendimentos por classificação de risco."
+          },
+          "response": []
+        },
+        {
+          "name": "number-of-medical-appointments-per-classification",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/number-of-medical-appointments-per-classification",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "number-of-medical-appointments-per-classification"]
+            },
+            "description": "Número de consultas médicas por classificação de risco."
+          },
+          "response": []
+        },
+        {
+          "name": "distribuition-of-patients-ages",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/distribuition-of-patients-ages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "distribuition-of-patients-ages"]
+            },
+            "description": "Distribuição de idade dos pacientes atendidos."
+          },
+          "response": []
+        },
+        {
+          "name": "number-of-calls-per-day-of-the-week",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/number-of-calls-per-day-of-the-week",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "number-of-calls-per-day-of-the-week"]
+            },
+            "description": "Número de chamadas por dia da semana."
+          },
+          "response": []
+        },
+        {
+          "name": "distribution-of-services-by-hour-group",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/distribution-of-services-by-hour-group",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "distribution-of-services-by-hour-group"]
+            },
+            "description": "Distribuição de atendimentos por grupos de horário."
+          },
+          "response": []
+        },
+        {
+          "name": "number-of-visits-per-nurse",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/number-of-visits-per-nurse",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "number-of-visits-per-nurse"]
+            },
+            "description": "Número de atendimentos por enfermeiro."
+          },
+          "response": []
+        },
+        {
+          "name": "number-of-visits-per-doctor",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/number-of-visits-per-doctor",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "number-of-visits-per-doctor"]
+            },
+            "description": "Número de atendimentos por médico."
+          },
+          "response": []
+        },
+        {
+          "name": "average-time-in-minutes-per-doctor",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/average-time-in-minutes-per-doctor",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "average-time-in-minutes-per-doctor"]
+            },
+            "description": "Tempo médio de consulta por médico, em minutos."
+          },
+          "response": []
+        },
+        {
+          "name": "heat-map-with-disease-indication",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/heat-map-with-disease-indication",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "heat-map-with-disease-indication"]
+            },
+            "description": "Mapa de calor de doenças por região."
+          },
+          "response": []
+        },
+        {
+          "name": "heat-map-with-the-number-of-medical-appointments-by-neighborhood",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/user/{{user_id}}/unit/{{unit_id}}/heat-map-with-the-number-of-medical-appointments-by-neighborhood",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "user", "{{user_id}}", "unit", "{{unit_id}}", "heat-map-with-the-number-of-medical-appointments-by-neighborhood"]
+            },
+            "description": "Mapa de calor com número de consultas médicas por bairro."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "data",
+      "description": "Rotas para ingestão e atualização de dados.",
+      "item": [
+        {
+          "name": "add-file",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/data/add-file",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "add-file"]
+            },
+            "description": "Faz upload de um arquivo CSV/Excel com dados de atendimentos."
+          },
+          "response": []
+        },
+        {
+          "name": "update-graph-data",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/update-graph-data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "update-graph-data"]
+            },
+            "description": "Força a atualização dos dados de gráficos a partir do banco."
+          },
+          "response": []
+        },
+        {
+          "name": "available-health-units",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/data/available-health-units",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "data", "available-health-units"]
+            },
+            "description": "Lista as unidades de saúde disponíveis."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "machine-information",
+      "description": "Informações de hardware e uso do servidor.",
+      "item": [
+        {
+          "name": "machine-information",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/machine-information",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "machine-information"]
+            },
+            "description": "Retorna informações da máquina (CPU, memória, disco)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "prediction",
+      "description": "Endpoints de predição/diagnóstico via modelos de ML. Todos recebem uma imagem em multipart form-data.",
+      "item": [
+        {
+          "name": "predict-diseases",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prediction/predict",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prediction", "predict"]
+            },
+            "description": "Predição genérica de doenças a partir de uma imagem médica."
+          },
+          "response": []
+        },
+        {
+          "name": "predict-tb",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prediction/predict_tb",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prediction", "predict_tb"]
+            },
+            "description": "Predição de tuberculose a partir de raio-X."
+          },
+          "response": []
+        },
+        {
+          "name": "predict-osteoporosis",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prediction/predict_osteoporosis",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prediction", "predict_osteoporosis"]
+            },
+            "description": "Predição de osteoporose a partir de raio-X de joelho."
+          },
+          "response": []
+        },
+        {
+          "name": "detect-breast-cancer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prediction/detect",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prediction", "detect"]
+            },
+            "description": "Detecção de câncer de mama a partir de mamografia."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "information",
+      "description": "Endpoints de auditoria.",
+      "item": [
+        {
+          "name": "audit-filters",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/information/audits/audit-filters",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "information", "audits", "audit-filters"]
+            },
+            "description": "Filtros disponíveis para a auditoria (emails, paths, datas)."
+          },
+          "response": []
+        },
+        {
+          "name": "all-audits",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/information/audits?email=&path=&date_of_request=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "information", "audits"],
+              "query": [
+                { "key": "email", "value": "", "disabled": true },
+                { "key": "path", "value": "", "disabled": true },
+                { "key": "date_of_request", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Retorna todos os logs de auditoria. Filtros opcionais via query string."
+          },
+          "response": []
+        },
+        {
+          "name": "audits-by-page",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "api_key", "value": "{{api_key}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/information/audits/3?email=&path=&date_of_request=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "information", "audits", "3"],
+              "query": [
+                { "key": "email", "value": "", "disabled": true },
+                { "key": "path", "value": "", "disabled": true },
+                { "key": "date_of_request", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Retorna logs de auditoria paginados (último segmento do path é a página)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
