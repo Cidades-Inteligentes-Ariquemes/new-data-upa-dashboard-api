@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     libpng-dev \
     curl \
-    libgl1-mesa-glx \
+    libgl1 \
     ffmpeg \
     libsm6 \
     libxext6 \
