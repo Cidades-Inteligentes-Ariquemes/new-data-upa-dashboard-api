@@ -1,20 +1,20 @@
 services:
   db:
-    container_name: "postgres-dados-upa-rust"
+    container_name: "postgres-forecast-vision"
     image: postgres:16.4
     ports:
-      - "5432:5432"
+      - "5435:5432"
     environment:
-      POSTGRES_DB: your_database_name
-      POSTGRES_USER: your_username
-      POSTGRES_PASSWORD: your_password
+      POSTGRES_DB: forecast-vision-db
+      POSTGRES_USER: forecast-vision
+      POSTGRES_PASSWORD: forecast-vision-123
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backup-dados-upa.sql:/docker-entrypoint-initdb.d/backup-dados-upa.sql
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U your_username -d your_database_name"]
+      test: ["CMD-SHELL", "pg_isready -U forecast-vision -d forecast-vision-db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -41,10 +41,10 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://your_username:your_password@db:5432/your_database_name
+      DATABASE_URL: postgresql://forecast-vision:forecast-vision-123@db:5432/forecast-vision-db
       ML_API_URL: http://ml_api:8000
     ports:
-      - '8080:8080'
+      - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
