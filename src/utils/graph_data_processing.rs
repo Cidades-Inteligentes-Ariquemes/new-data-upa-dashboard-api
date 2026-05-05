@@ -16,6 +16,12 @@ const TABLE_CONSULTA_MEDICA: &str = "ConsultaMedica";
 const ROLE_MEDICO_CLINICO: &str = "MEDICO CLINICO";
 const ROLE_MEDICO_CIRURGIAO_GERAL: &str = "MEDICO CIRURGIAO GERAL";
 const ROLE_ENFERMEIRO: &str = "ENFERMEIRO";
+const BUCKET_SEM_ENDERECO: &str = "SEM ENDERECO";
+const BUCKET_SEM_BAIRRO: &str = "SEM BAIRRO";
+const BUCKET_SEM_COORDENADA: &str = "SEM COORDENADA";
+const INVALID_ADDRESS_DO_IPE: &str = "DO IPE";
+const BUCKET_INCORRETO: &str = "INCORRETO";
+const KEY_DOENCA_NAO_INFERIDA: &str = "doenca_nao_inferida";
 
 /// Calcula `(cutoff_60, cutoff_90)` a partir da maior data presente no vetor.
 /// Datas inválidas/vazias são ignoradas. Retorna `None` se nenhuma data for parseável.
@@ -163,6 +169,13 @@ fn hour_group_from_time(time_str: &str) -> Option<&'static str> {
         22..=23 => Some("22h-24h"),
         _ => None,
     }
+}
+
+fn is_special_heat_map_bucket(bucket_name: &str) -> bool {
+    matches!(
+        bucket_name,
+        BUCKET_INCORRETO | BUCKET_SEM_ENDERECO | BUCKET_SEM_BAIRRO | BUCKET_SEM_COORDENADA
+    )
 }
 
 pub struct DataProcessingForGraphPlotting;
@@ -316,12 +329,7 @@ impl DataProcessingForGraphPlotting {
                 continue;
             };
 
-            increment_competencia_unique_count(
-                &mut seen,
-                &mut counts,
-                &competencia,
-                &ifrotabelaid,
-            );
+            increment_competencia_unique_count(&mut seen, &mut counts, &competencia, &ifrotabelaid);
         }
 
         Ok(json!(counts))
@@ -340,8 +348,7 @@ impl DataProcessingForGraphPlotting {
                 continue;
             };
 
-            let Some(tabela_nome) = get_non_empty_cell_string(df, "ifrotabelanome", row_idx)
-            else {
+            let Some(tabela_nome) = get_non_empty_cell_string(df, "ifrotabelanome", row_idx) else {
                 continue;
             };
 
@@ -470,7 +477,11 @@ impl DataProcessingForGraphPlotting {
             if idade >= 0 {
                 for (group, range) in &age_groups {
                     if range.contains(&idade)
-                        && seen.insert((group.to_string(), competencia.clone(), ifrotabelaid.clone()))
+                        && seen.insert((
+                            group.to_string(),
+                            competencia.clone(),
+                            ifrotabelaid.clone(),
+                        ))
                     {
                         *age_data
                             .get_mut(group)
@@ -562,24 +573,14 @@ impl DataProcessingForGraphPlotting {
         df: &DataFrame,
     ) -> Result<Value, Box<dyn Error + Send + Sync>> {
         let all_groups = [
-            "00h-02h", "02h-04h", "04h-06h", "06h-08h", "08h-10h", "10h-12h", "12h-14h",
-            "14h-16h", "16h-18h", "18h-20h", "20h-22h", "22h-24h",
+            "00h-02h", "02h-04h", "04h-06h", "06h-08h", "08h-10h", "10h-12h", "12h-14h", "14h-16h",
+            "16h-18h", "18h-20h", "20h-22h", "22h-24h",
         ];
         let mut hour_group_data: HashMap<String, HashMap<String, i64>> = HashMap::new();
         let mut seen = HashSet::new();
 
         for row_idx in 0..df.height() {
-            if !row_matches_table_name(df, row_idx, TABLE_CONSULTA_MEDICA) {
-                continue;
-            }
-
-            let Some(especialidade) =
-                get_non_empty_cell_string(df, "ifroprofissionalcbods", row_idx)
-            else {
-                continue;
-            };
-
-            if especialidade != ROLE_MEDICO_CLINICO {
+            if !row_matches_table_name(df, row_idx, TABLE_ACOLHIMENTO) {
                 continue;
             }
 
@@ -647,8 +648,7 @@ impl DataProcessingForGraphPlotting {
                 continue;
             }
 
-            let Some(nurse_name) =
-                get_non_empty_cell_string(df, "ifroprofissionalnome", row_idx)
+            let Some(nurse_name) = get_non_empty_cell_string(df, "ifroprofissionalnome", row_idx)
             else {
                 continue;
             };
@@ -706,8 +706,7 @@ impl DataProcessingForGraphPlotting {
                 continue;
             }
 
-            let Some(doctor_name) =
-                get_non_empty_cell_string(df, "ifroprofissionalnome", row_idx)
+            let Some(doctor_name) = get_non_empty_cell_string(df, "ifroprofissionalnome", row_idx)
             else {
                 continue;
             };
@@ -972,6 +971,9 @@ impl DataProcessingForGraphPlotting {
     ) -> Result<Value, Box<dyn Error + Send + Sync>> {
         let mut dados_por_queixa: DiseaseLocationMap = HashMap::new();
         let mut seen = HashSet::new();
+        let mut total_atendimentos: i64 = 0;
+        let mut total_inferidos: i64 = 0;
+        let mut atendimentos_base: HashSet<(String, String)> = HashSet::new();
 
         for i in 0..df.height() {
             if !row_matches_table_name(df, i, TABLE_ACOLHIMENTO) {
@@ -981,6 +983,14 @@ impl DataProcessingForGraphPlotting {
             let Some(competencia) = get_non_empty_cell_string(df, "ifrocompetencia", i) else {
                 continue;
             };
+            let Some(ifrotabelaid) = get_non_empty_cell_string(df, "ifrotabelaid", i) else {
+                continue;
+            };
+
+            if atendimentos_base.insert((competencia.clone(), ifrotabelaid.clone())) {
+                total_atendimentos += 1;
+            }
+
             let Some(endereco) = get_non_empty_cell_string(df, "ifropacienteendereco", i) else {
                 continue;
             };
@@ -1000,9 +1010,6 @@ impl DataProcessingForGraphPlotting {
             let Some(longitude) = get_non_empty_cell_string(df, "ifropacientelongitude", i) else {
                 continue;
             };
-            let Some(ifrotabelaid) = get_non_empty_cell_string(df, "ifrotabelaid", i) else {
-                continue;
-            };
 
             let (Ok(lat), Ok(long)) = (latitude.parse::<f64>(), longitude.parse::<f64>()) else {
                 continue;
@@ -1016,6 +1023,8 @@ impl DataProcessingForGraphPlotting {
             )) {
                 continue;
             }
+
+            total_inferidos += 1;
 
             if !dados_por_queixa.contains_key(&queixa) {
                 dados_por_queixa.insert(queixa.clone(), HashMap::new());
@@ -1064,62 +1073,86 @@ impl DataProcessingForGraphPlotting {
             final_dict.insert(queixa, json!(illness_dict));
         }
 
+        final_dict.insert(
+            KEY_DOENCA_NAO_INFERIDA.to_string(),
+            json!({
+                "quantidade": total_atendimentos.saturating_sub(total_inferidos)
+            }),
+        );
+
         Ok(json!(final_dict))
     }
 
     pub async fn create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(
         &self,
         df: &DataFrame,
+        _unidade_id: i32,
     ) -> Result<Value, Box<dyn Error + Send + Sync>> {
-        let mut bairro_dados: HashMap<String, (f64, f64, i64)> = HashMap::new();
-        let mut seen = HashSet::new();
+        let mut bairro_dados: HashMap<String, (Option<f64>, Option<f64>, i64)> = HashMap::new();
+        let mut seen: HashSet<(String, String)> = HashSet::new();
 
         for i in 0..df.height() {
-            if !row_matches_table_name(df, i, TABLE_CONSULTA_MEDICA) {
+            if !row_matches_table_name(df, i, TABLE_ACOLHIMENTO) {
                 continue;
             }
 
-            let Some(endereco) = get_non_empty_cell_string(df, "ifropacienteendereco", i) else {
-                continue;
-            };
-            if endereco == "DO IPE" {
-                continue;
-            }
-            let Some(bairro) = get_non_empty_cell_string(df, "ifropacientebairro", i) else {
-                continue;
-            };
-            let Some(latitude) = get_non_empty_cell_string(df, "ifropacientelatitude", i) else {
-                continue;
-            };
-            let Some(longitude) = get_non_empty_cell_string(df, "ifropacientelongitude", i) else {
+            let Some(competencia) = get_non_empty_cell_string(df, "ifrocompetencia", i) else {
                 continue;
             };
             let Some(ifrotabelaid) = get_non_empty_cell_string(df, "ifrotabelaid", i) else {
                 continue;
             };
 
-            let (Ok(lat), Ok(long)) = (latitude.parse::<f64>(), longitude.parse::<f64>()) else {
-                continue;
-            };
-
-            if !seen.insert((bairro.clone(), ifrotabelaid)) {
+            if !seen.insert((competencia, ifrotabelaid)) {
                 continue;
             }
 
-            let entry = bairro_dados.entry(bairro).or_insert((lat, long, 0));
+            let endereco =
+                get_non_empty_cell_string(df, "ifropacienteendereco", i).unwrap_or_default();
+            let bairro = get_non_empty_cell_string(df, "ifropacientebairro", i).unwrap_or_default();
+            let latitude =
+                get_non_empty_cell_string(df, "ifropacientelatitude", i).unwrap_or_default();
+            let longitude =
+                get_non_empty_cell_string(df, "ifropacientelongitude", i).unwrap_or_default();
+
+            let (bucket_name, lat, long) = if endereco.is_empty() {
+                (BUCKET_SEM_ENDERECO.to_string(), None, None)
+            } else if endereco == INVALID_ADDRESS_DO_IPE {
+                (BUCKET_INCORRETO.to_string(), None, None)
+            } else if bairro.is_empty() {
+                (BUCKET_SEM_BAIRRO.to_string(), None, None)
+            } else {
+                match (latitude.parse::<f64>().ok(), longitude.parse::<f64>().ok()) {
+                    (Some(lat), Some(long)) => (bairro, Some(lat), Some(long)),
+                    _ => (BUCKET_SEM_COORDENADA.to_string(), None, None),
+                }
+            };
+
+            let entry = bairro_dados.entry(bucket_name).or_insert((lat, long, 0));
             entry.2 += 1;
         }
 
         let mut organized_data = HashMap::new();
+        let mut dados_extras = HashMap::new();
 
         for (bairro, (lat, long, quantidade)) in bairro_dados {
             let mut neighborhood_data = HashMap::new();
+            if is_special_heat_map_bucket(&bairro) {
+                neighborhood_data.insert("latitude".to_string(), Value::Null);
+                neighborhood_data.insert("longitude".to_string(), Value::Null);
+                neighborhood_data.insert("quantidade".to_string(), json!(quantidade));
+                dados_extras.insert(bairro, json!(neighborhood_data));
+                continue;
+            }
+
             neighborhood_data.insert("latitude".to_string(), json!(lat));
             neighborhood_data.insert("longitude".to_string(), json!(long));
             neighborhood_data.insert("quantidade".to_string(), json!(quantidade));
 
             organized_data.insert(bairro, json!(neighborhood_data));
         }
+
+        organized_data.insert("dados_extras".to_string(), json!(dados_extras));
 
         Ok(json!(organized_data))
     }
@@ -1193,7 +1226,10 @@ impl DataProcessingForGraphPlotting {
             }
 
             if let Some(cid) = get_non_empty_cell_string(df, "ifrocidcd", row_idx) {
-                cids_por_atendimento.entry(event_key).or_default().insert(cid);
+                cids_por_atendimento
+                    .entry(event_key)
+                    .or_default()
+                    .insert(cid);
             }
         }
 
@@ -1239,11 +1275,7 @@ impl DataProcessingForGraphPlotting {
         &self,
         df: &DataFrame,
     ) -> Result<Value, Box<dyn Error + Send + Sync>> {
-        Ok(aggregate_by_classification(
-            df,
-            TABLE_CONSULTA_MEDICA,
-            true,
-        ))
+        Ok(aggregate_by_classification(df, TABLE_CONSULTA_MEDICA, true))
     }
 }
 
@@ -1386,8 +1418,7 @@ mod tests {
         .unwrap();
 
         let result = block_on(
-            DataProcessingForGraphPlotting
-                .create_dict_to_number_of_appointments_per_month(&df),
+            DataProcessingForGraphPlotting.create_dict_to_number_of_appointments_per_month(&df),
         )
         .unwrap();
 
@@ -1418,8 +1449,7 @@ mod tests {
         .unwrap();
 
         let result = block_on(
-            DataProcessingForGraphPlotting
-                .create_dict_to_number_of_appointments_per_cid(&df),
+            DataProcessingForGraphPlotting.create_dict_to_number_of_appointments_per_cid(&df),
         )
         .unwrap();
 
@@ -1457,6 +1487,369 @@ mod tests {
                     "todos": 1,
                     "ultimos_60_dias": 1,
                     "ultimos_90_dias": 1
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn heat_map_with_disease_indication_adds_doenca_nao_inferida_for_missing_rows() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-1", "2026-1", "2026-1", "2026-2", "2026-2"],
+            "ifrotabelaid" => [1i64, 2, 3, 4, 5],
+            "ifrotabelanome" => ["Acolhimento", "Acolhimento", "Acolhimento", "Acolhimento", "Acolhimento"],
+            "ifropacienteendereco" => ["RUA 1", "RUA 2", "DO IPE", "RUA 4", "RUA 5"],
+            "ifropacientebairro" => ["SETOR 01", "SETOR 02", "SETOR 03", "SETOR 04", "SETOR 05"],
+            "ifropacientequeixaprincipal" => ["gripe", "", "dengue", "dengue", "febre"],
+            "ifropacientelatitude" => ["-9.1", "-9.2", "-9.3", "-9.4", ""],
+            "ifropacientelongitude" => ["-63.1", "-63.2", "-63.3", "-63.4", "-63.5"]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dictionary_with_location_and_number_per_disease(&df),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "gripe": {
+                    "2026-1": {
+                        "SETOR 01": {
+                            "latitude": -9.1,
+                            "longitude": -63.1,
+                            "quantidade": 1
+                        }
+                    },
+                    "todos": {
+                        "SETOR 01": {
+                            "latitude": -9.1,
+                            "longitude": -63.1,
+                            "quantidade": 1
+                        }
+                    }
+                },
+                "dengue": {
+                    "2026-2": {
+                        "SETOR 04": {
+                            "latitude": -9.4,
+                            "longitude": -63.4,
+                            "quantidade": 1
+                        }
+                    },
+                    "todos": {
+                        "SETOR 04": {
+                            "latitude": -9.4,
+                            "longitude": -63.4,
+                            "quantidade": 1
+                        }
+                    }
+                },
+                "doenca_nao_inferida": {
+                    "quantidade": 3
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn heat_map_with_disease_indication_sets_doenca_nao_inferida_to_zero_when_complete() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-1", "2026-2"],
+            "ifrotabelaid" => [1i64, 2],
+            "ifrotabelanome" => ["Acolhimento", "Acolhimento"],
+            "ifropacienteendereco" => ["RUA 1", "RUA 2"],
+            "ifropacientebairro" => ["SETOR 01", "SETOR 02"],
+            "ifropacientequeixaprincipal" => ["gripe", "dengue"],
+            "ifropacientelatitude" => ["-9.1", "-9.2"],
+            "ifropacientelongitude" => ["-63.1", "-63.2"]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dictionary_with_location_and_number_per_disease(&df),
+        )
+        .unwrap();
+
+        assert_eq!(result["doenca_nao_inferida"], json!({ "quantidade": 0 }));
+        assert_eq!(
+            result["gripe"]["todos"]["SETOR 01"],
+            json!({
+                "latitude": -9.1,
+                "longitude": -63.1,
+                "quantidade": 1
+            })
+        );
+        assert_eq!(
+            result["dengue"]["todos"]["SETOR 02"],
+            json!({
+                "latitude": -9.2,
+                "longitude": -63.2,
+                "quantidade": 1
+            })
+        );
+    }
+
+    #[test]
+    fn distribution_of_services_by_hour_group_uses_acolhimento_and_unique_ids() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-3", "2026-3", "2026-3", "2026-3", "2026-3"],
+            "ifrohoraatendimento" => ["00:15:00", "00:45:00", "09:30:00", "18:10:00", "08:00:00"],
+            "ifroprofissionalcbods" => ["ENFERMEIRO", "MEDICO CLINICO", "ENFERMEIRO", "ENFERMEIRO", "MEDICO CLINICO"],
+            "ifrotabelaid" => [1i64, 1, 2, 3, 4],
+            "ifrotabelanome" => ["Acolhimento", "Acolhimento", "Acolhimento", "Acolhimento", "ConsultaMedica"]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_distribution_of_services_by_hour_group(&df),
+        )
+        .unwrap();
+
+        let object = result.as_object().unwrap();
+        let zero_only_groups = [
+            "02h-04h", "04h-06h", "06h-08h", "10h-12h", "12h-14h", "14h-16h", "16h-18h", "20h-22h",
+            "22h-24h",
+        ];
+
+        assert_eq!(object.len(), 12);
+        assert_eq!(object["00h-02h"], json!({ "2026-3": 1, "todos": 1 }));
+        assert_eq!(object["08h-10h"], json!({ "2026-3": 1, "todos": 1 }));
+        assert_eq!(object["18h-20h"], json!({ "2026-3": 1, "todos": 1 }));
+
+        for group in zero_only_groups {
+            assert_eq!(object[group], json!({ "todos": 0 }));
+        }
+    }
+
+    #[test]
+    fn heat_map_by_neighborhood_uses_acolhimento_and_extra_buckets() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-1", "2026-1", "2026-1", "2026-1", "2026-1", "2026-1", "2026-1"],
+            "ifrotabelaid" => [1i64, 1, 2, 3, 4, 5, 6],
+            "ifrotabelanome" => [
+                "Acolhimento",
+                "Acolhimento",
+                "Acolhimento",
+                "Acolhimento",
+                "Acolhimento",
+                "Acolhimento",
+                "ConsultaMedica"
+            ],
+            "ifropacienteendereco" => [
+                "RUA 1",
+                "RUA 1",
+                "",
+                "DO IPE",
+                "RUA 4",
+                "RUA 5",
+                "RUA 6"
+            ],
+            "ifropacientebairro" => [
+                "SETOR 01",
+                "SETOR 01",
+                "SETOR 02",
+                "SETOR 03",
+                "",
+                "SETOR 05",
+                "SETOR 06"
+            ],
+            "ifropacientelatitude" => [
+                "-9.1",
+                "-9.1",
+                "-9.2",
+                "-9.3",
+                "-9.4",
+                "",
+                "-9.6"
+            ],
+            "ifropacientelongitude" => [
+                "-63.1",
+                "-63.1",
+                "-63.2",
+                "-63.3",
+                "-63.4",
+                "",
+                "-63.6"
+            ]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(
+                    &df, 2,
+                ),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "SETOR 01": {
+                    "latitude": -9.1,
+                    "longitude": -63.1,
+                    "quantidade": 1
+                },
+                "dados_extras": {
+                    "SEM ENDERECO": {
+                        "latitude": null,
+                        "longitude": null,
+                        "quantidade": 1
+                    },
+                    "INCORRETO": {
+                        "latitude": null,
+                        "longitude": null,
+                        "quantidade": 1
+                    },
+                    "SEM BAIRRO": {
+                        "latitude": null,
+                        "longitude": null,
+                        "quantidade": 1
+                    },
+                    "SEM COORDENADA": {
+                        "latitude": null,
+                        "longitude": null,
+                        "quantidade": 1
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn heat_map_by_neighborhood_keeps_extra_buckets_only_inside_dados_extras() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-1", "2026-1", "2026-1", "2026-1"],
+            "ifrotabelaid" => [1i64, 2, 3, 4],
+            "ifrotabelanome" => ["Acolhimento", "Acolhimento", "Acolhimento", "Acolhimento"],
+            "ifropacienteendereco" => ["", "DO IPE", "RUA 3", "RUA 4"],
+            "ifropacientebairro" => ["SETOR 01", "SETOR 02", "", "SETOR 04"],
+            "ifropacientelatitude" => ["-9.1", "-9.2", "-9.3", ""],
+            "ifropacientelongitude" => ["-63.1", "-63.2", "-63.3", ""]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(
+                    &df, 1,
+                ),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "dados_extras": {
+                    "SEM ENDERECO": {
+                        "latitude": null,
+                        "longitude": null,
+                        "quantidade": 1
+                    },
+                    "INCORRETO": {
+                        "latitude": null,
+                        "longitude": null,
+                        "quantidade": 1
+                    },
+                    "SEM BAIRRO": {
+                        "latitude": null,
+                        "longitude": null,
+                        "quantidade": 1
+                    },
+                    "SEM COORDENADA": {
+                        "latitude": null,
+                        "longitude": null,
+                        "quantidade": 1
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn heat_map_by_neighborhood_always_includes_empty_dados_extras() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-1", "2026-1"],
+            "ifrotabelaid" => [1i64, 2],
+            "ifrotabelanome" => ["Acolhimento", "Acolhimento"],
+            "ifropacienteendereco" => ["RUA 1", "RUA 2"],
+            "ifropacientebairro" => ["SETOR 01", "SETOR 02"],
+            "ifropacientelatitude" => ["-9.1", "-9.2"],
+            "ifropacientelongitude" => ["-63.1", "-63.2"]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(
+                    &df, 2,
+                ),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "SETOR 01": {
+                    "latitude": -9.1,
+                    "longitude": -63.1,
+                    "quantidade": 1
+                },
+                "SETOR 02": {
+                    "latitude": -9.2,
+                    "longitude": -63.2,
+                    "quantidade": 1
+                },
+                "dados_extras": {}
+            })
+        );
+    }
+
+    #[test]
+    fn heat_map_by_neighborhood_counts_same_ifrotabelaid_once_per_competencia() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-1", "2026-1", "2026-2", "2026-2"],
+            "ifrotabelaid" => [1i64, 1, 1, 2],
+            "ifrotabelanome" => ["Acolhimento", "Acolhimento", "Acolhimento", "Acolhimento"],
+            "ifropacienteendereco" => ["RUA 1", "RUA 1", "RUA 2", "DO IPE"],
+            "ifropacientebairro" => ["SETOR 01", "SETOR 01", "SETOR 02", "SETOR 03"],
+            "ifropacientelatitude" => ["-9.1", "-9.1", "-9.2", "-9.3"],
+            "ifropacientelongitude" => ["-63.1", "-63.1", "-63.2", "-63.3"]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(
+                    &df, 2,
+                ),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "SETOR 01": {
+                    "latitude": -9.1,
+                    "longitude": -63.1,
+                    "quantidade": 1
+                },
+                "SETOR 02": {
+                    "latitude": -9.2,
+                    "longitude": -63.2,
+                    "quantidade": 1
+                },
+                "dados_extras": {
+                    "INCORRETO": {
+                        "latitude": null,
+                        "longitude": null,
+                        "quantidade": 1
+                    }
                 }
             })
         );

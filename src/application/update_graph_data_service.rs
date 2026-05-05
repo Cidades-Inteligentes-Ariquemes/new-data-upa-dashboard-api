@@ -550,15 +550,28 @@ impl UpdateGraphDataService {
                     let organized_data = match identifier {
                         "number_of_visits_per_doctor" | "average_time_per_doctor" => {
                             let non_doctors = self.get_additional_data("non_doctors").await?;
-                            self.call_processing_method(method_name, &df, Some(&non_doctors))
+                            self.call_processing_method(
+                                method_name,
+                                &df,
+                                Some(&non_doctors),
+                                unidade_id,
+                            )
                                 .await?
                         }
                         "number_of_visits_per_nurse" => {
                             let non_nurse = self.get_additional_data("non_nurse").await?;
-                            self.call_processing_method(method_name, &df, Some(&non_nurse))
+                            self.call_processing_method(
+                                method_name,
+                                &df,
+                                Some(&non_nurse),
+                                unidade_id,
+                            )
                                 .await?
                         }
-                        _ => self.call_processing_method(method_name, &df, None).await?,
+                        _ => {
+                            self.call_processing_method(method_name, &df, None, unidade_id)
+                                .await?
+                        }
                     };
 
                     // Salva dados incluindo o id da unidade
@@ -627,6 +640,7 @@ impl UpdateGraphDataService {
         method: &str,
         main_df: &DataFrame,
         additional_df: Option<&DataFrame>,
+        unidade_id: i32,
     ) -> Result<Value, AppError> {
         match (method, additional_df) {
             ("create_dict_to_number_of_appointments_per_month", None) => self
@@ -711,6 +725,7 @@ impl UpdateGraphDataService {
                 .data_processing
                 .create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(
                     main_df,
+                    unidade_id,
                 )
                 .await
                 .map_err(|e| {
