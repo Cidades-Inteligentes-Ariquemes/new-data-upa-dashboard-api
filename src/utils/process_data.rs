@@ -11,37 +11,6 @@ use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
-/// Retorna os nomes das colunas a serem removidas
-pub fn columns_names() -> Vec<&'static str> {
-    vec![
-        "IfroId",
-        "IfroTabelaId",
-        "IfroOrigem",
-        "IfroMunicipioId",
-        "IfroAlocacaoId",
-        "IfroMunicipioIBGE",
-        "IfroUnidadeCNES",
-        "IfroUnidadeCNPJ",
-        "IfroProfissionalCBOCd",
-        "IfroProcedimentoId",
-        "IfroProfissionalCNS",
-        "IfroProcedimentoSUSCd",
-        "IfroPacienteId",
-        "IfroPacienteCNS",
-        "IfroPacienteCNSTipo",
-        "IfroPacienteCNSValido",
-        "IfroPacienteSexoCd",
-        "IfroPacienteRacaCorCd",
-        "IfroPacienteEtniaCd",
-        "IfroPacienteNacionalidadeCd",
-        "IfroPacienteEnderecoComp",
-        "IfroPacienteTelefone",
-        "IfroPacienteEmail",
-        "IfroCidId",
-        "IfroCidDs",
-    ]
-}
-
 /// Remove as colunas especificadas do DataFrame
 pub fn remove_unnecessary_columns(
     df: DataFrame,
@@ -1554,11 +1523,36 @@ pub fn create_dataframe_from_dict(data: &HashMap<String, Vec<Value>>) -> PolarsR
                     .collect();
                 series_vec.push(Series::new(column_name.into(), string_values).into());
             }
-            // Numeric columns (assuming float for simplicity)
+            // Integer columns
+            Some(value) if value.is_i64() || value.is_u64() => {
+                let numeric_values: Vec<Option<i64>> = values
+                    .iter()
+                    .map(|v| {
+                        v.as_i64()
+                            .or_else(|| v.as_u64().and_then(|n| i64::try_from(n).ok()))
+                            .or_else(|| v.as_str().and_then(|s| s.parse::<i64>().ok()))
+                    })
+                    .collect();
+                series_vec.push(Series::new(column_name.into(), numeric_values).into());
+            }
+            // Floating point columns
+            Some(value) if value.is_f64() => {
+                let numeric_values: Vec<Option<f64>> = values
+                    .iter()
+                    .map(|v| v.as_f64().or_else(|| v.as_str().and_then(|s| s.parse::<f64>().ok())))
+                    .collect();
+                series_vec.push(Series::new(column_name.into(), numeric_values).into());
+            }
+            // Other numeric columns fallback to float
             Some(value) if value.is_number() => {
                 let numeric_values: Vec<Option<f64>> = values
                     .iter()
-                    .map(|v| v.as_str().and_then(|s| s.parse().ok()))
+                    .map(|v| {
+                        v.as_f64()
+                            .or_else(|| v.as_i64().map(|n| n as f64))
+                            .or_else(|| v.as_u64().map(|n| n as f64))
+                            .or_else(|| v.as_str().and_then(|s| s.parse::<f64>().ok()))
+                    })
                     .collect();
                 series_vec.push(Series::new(column_name.into(), numeric_values).into());
             }

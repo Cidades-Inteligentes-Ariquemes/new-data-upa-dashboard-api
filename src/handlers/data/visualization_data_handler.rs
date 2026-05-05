@@ -195,6 +195,21 @@ pub async fn appointments_per_cid(
     service.appointments_per_cid(user_id, unidade_id).await
 }
 
+pub async fn appointments_without_medical_consultation(
+    service: web::Data<VisualizationDataService>,
+    path: web::Path<(String, String)>, // (user_id, unidade_id)
+) -> Result<HttpResponse, AppError> {
+    let (user_id, unidade_id) = path.into_inner();
+
+    let unidade_id: i32 = unidade_id
+        .parse()
+        .map_err(|_| AppError::BadRequest("Invalid unit ID format".to_string()))?;
+
+    service
+        .appointments_without_medical_consultation(user_id, unidade_id)
+        .await
+}
+
 pub async fn appointments_per_classification(
     service: web::Data<VisualizationDataService>,
     path: web::Path<(String, String)>, // (user_id, unidade_id)

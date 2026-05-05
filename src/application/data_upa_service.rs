@@ -12,7 +12,7 @@ use crate::utils::response::ApiResponse;
 use crate::AppError;
 
 use crate::utils::process_data::{
-    add_week_day_and_split_date_time_polars, columns_names, create_dataframe,
+    add_week_day_and_split_date_time_polars, create_dataframe,
     drop_column_if_exists, extract_keyword_hybrid, fill_null_strings, get_unique_values,
     normalize_column_names_of_the_df_to_lower_case, normalize_text_to_lower_case_columns_lazy,
     normalize_text_to_upper_case_columns_lazy, read_df_from_bytes, remove_unnecessary_columns,
@@ -154,28 +154,8 @@ impl DataUpaService {
             request_id, rows_before, cols_before
         );
 
-        let remove_stage = Self::stage_start(request_id, "remove_unnecessary_columns");
-        let colunas_desnecessarias = columns_names();
-        let df_reduzido = match remove_unnecessary_columns(df.clone(), &colunas_desnecessarias) {
-            Ok(df) => df,
-            Err(e) => {
-                error!(
-                    "[request_id={}] Erro ao remover colunas desnecessárias: {:?}",
-                    request_id, e
-                );
-                return Err(AppError::InternalServerError);
-            }
-        };
-        Self::stage_complete(
-            request_id,
-            "remove_unnecessary_columns",
-            remove_stage,
-            Some(&df_reduzido),
-            None,
-        );
-
         let transform_stage = Self::stage_start(request_id, "split_date_and_add_weekday");
-        let df_transformed = match add_week_day_and_split_date_time_polars(df_reduzido) {
+        let df_transformed = match add_week_day_and_split_date_time_polars(df) {
             Ok(df) => df,
             Err(e) => {
                 error!(

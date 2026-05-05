@@ -715,8 +715,7 @@ impl DataRepository for PgDataRepository {
                     "INT4" | "INT8" => {
                         // Vrifica se o valor é NULL antes de tentar obter
                         if row.try_get_raw(i)?.is_null() {
-                            // Se for NULL, retorna 0 ou outro valor padrão em vez de NULL
-                            json!(0)
+                            Value::Null
                         } else if let Ok(v) = row.try_get::<i64, _>(i) {
                             // Se não for NULL e conseguir obter como i64
                             json!(v)
@@ -731,7 +730,7 @@ impl DataRepository for PgDataRepository {
                     }
                     "FLOAT4" | "FLOAT8" => {
                         if row.try_get_raw(i)?.is_null() {
-                            json!(0.0) // Ou Value::Null
+                            Value::Null
                         } else if let Ok(v) = row.try_get::<f64, _>(i) {
                             json!(v)
                         } else {
@@ -751,7 +750,7 @@ impl DataRepository for PgDataRepository {
                     }
                     "BOOL" => {
                         if row.try_get_raw(i)?.is_null() {
-                            json!(false) // Ou Value::Null
+                            Value::Null
                         } else if let Ok(v) = row.try_get::<bool, _>(i) {
                             json!(v)
                         } else {

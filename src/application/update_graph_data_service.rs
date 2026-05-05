@@ -78,7 +78,10 @@ impl UpdateGraphDataService {
                 // Agendamentos por mês
                 HashMap::from([
                     ("table", Value::String("bpa".to_string())),
-                    ("column", json!(["ifrocompetencia"])),
+                    (
+                        "column",
+                        json!(["ifrocompetencia", "ifrotabelaid", "ifrotabelanome"]),
+                    ),
                     (
                         "identifier",
                         Value::String("number_of_appointments_per_month".to_string()),
@@ -97,7 +100,10 @@ impl UpdateGraphDataService {
                 // Agendamentos por fluxo
                 HashMap::from([
                     ("table", Value::String("bpa".to_string())),
-                    ("column", json!(["ifrocompetencia", "ifrotabelanome"])),
+                    (
+                        "column",
+                        json!(["ifrocompetencia", "ifrotabelanome", "ifrotabelaid"]),
+                    ),
                     (
                         "identifier",
                         Value::String("number_of_appointments_per_flow".to_string()),
@@ -114,7 +120,15 @@ impl UpdateGraphDataService {
                 // Distribuição de idades
                 HashMap::from([
                     ("table", Value::String("bpa".to_string())),
-                    ("column", json!(["ifrocompetencia", "ifropacienteidade"])),
+                    (
+                        "column",
+                        json!([
+                            "ifrocompetencia",
+                            "ifropacienteidade",
+                            "ifrotabelaid",
+                            "ifrotabelanome"
+                        ]),
+                    ),
                     (
                         "identifier",
                         Value::String("distribuition_of_patients_ages".to_string()),
@@ -131,7 +145,15 @@ impl UpdateGraphDataService {
                 // Chamadas por dia da semana
                 HashMap::from([
                     ("table", Value::String("bpa".to_string())),
-                    ("column", json!(["ifrocompetencia", "ifrodiasemana"])),
+                    (
+                        "column",
+                        json!([
+                            "ifrocompetencia",
+                            "ifrodiasemana",
+                            "ifrotabelaid",
+                            "ifrotabelanome"
+                        ]),
+                    ),
                     (
                         "identifier",
                         Value::String("number_of_calls_per_day_of_the_week".to_string()),
@@ -155,7 +177,9 @@ impl UpdateGraphDataService {
                         json!([
                             "ifrocompetencia",
                             "ifrohoraatendimento",
-                            "ifroprofissionalcbods"
+                            "ifroprofissionalcbods",
+                            "ifrotabelaid",
+                            "ifrotabelanome"
                         ]),
                     ),
                     (
@@ -183,7 +207,8 @@ impl UpdateGraphDataService {
                             "ifroprofissionalid",
                             "ifroprofissionalcbods",
                             "ifroprofissionalnome",
-                            "ifrotabelanome"
+                            "ifrotabelanome",
+                            "ifrotabelaid"
                         ]),
                     ),
                     (
@@ -209,7 +234,8 @@ impl UpdateGraphDataService {
                             "ifroprofissionalid",
                             "ifroprofissionalcbods",
                             "ifroprofissionalnome",
-                            "ifrotabelanome"
+                            "ifrotabelanome",
+                            "ifrotabelaid"
                         ]),
                     ),
                     (
@@ -223,6 +249,33 @@ impl UpdateGraphDataService {
                     (
                         "method",
                         Value::String("create_dict_to_number_of_visits_per_doctor".to_string()),
+                    ),
+                ]),
+                // Atendimentos sem consulta médica
+                HashMap::from([
+                    ("table", Value::String("bpa".to_string())),
+                    (
+                        "column",
+                        json!(["ifrocompetencia", "ifrotabelaid", "ifrotabelanome"]),
+                    ),
+                    (
+                        "identifier",
+                        Value::String(
+                            "number_of_appointments_without_medical_consultation".to_string(),
+                        ),
+                    ),
+                    (
+                        "table_json",
+                        Value::String(
+                            "number_of_appointments_without_medical_consultation".to_string(),
+                        ),
+                    ),
+                    (
+                        "method",
+                        Value::String(
+                            "create_dict_to_number_of_appointments_without_medical_consultation"
+                                .to_string(),
+                        ),
                     ),
                 ]),
                 // Tempo médio por médico
@@ -257,7 +310,16 @@ impl UpdateGraphDataService {
                 // Atendimentos por CID
                 HashMap::from([
                     ("table", Value::String("bpa".to_string())),
-                    ("column", json!(["ifrocompetencia", "ifrocidcd", "ifrodataatendimento"])),
+                    (
+                        "column",
+                        json!([
+                            "ifrocompetencia",
+                            "ifrocidcd",
+                            "ifrodataatendimento",
+                            "ifrotabelaid",
+                            "ifrotabelanome"
+                        ]),
+                    ),
                     (
                         "identifier",
                         Value::String("number_of_appointments_per_cid".to_string()),
@@ -274,7 +336,16 @@ impl UpdateGraphDataService {
                 // Atendimentos por classificação
                 HashMap::from([
                     ("table", Value::String("bpa".to_string())),
-                    ("column", json!(["ifrocompetencia", "ifroclassificacao", "ifrodataatendimento"])),
+                    (
+                        "column",
+                        json!([
+                            "ifrocompetencia",
+                            "ifroclassificacao",
+                            "ifrodataatendimento",
+                            "ifrotabelaid",
+                            "ifrotabelanome"
+                        ]),
+                    ),
                     (
                         "identifier",
                         Value::String("number_of_appointments_per_classification".to_string()),
@@ -300,7 +371,8 @@ impl UpdateGraphDataService {
                             "ifroclassificacao",
                             "ifroprofissionalcbods",
                             "ifrotabelanome",
-                            "ifrodataatendimento"
+                            "ifrodataatendimento",
+                            "ifrotabelaid"
                         ]),
                     ),
                     (
@@ -338,7 +410,9 @@ impl UpdateGraphDataService {
                             "ifropacientebairro",
                             "ifropacientequeixaprincipal",
                             "ifropacientelatitude",
-                            "ifropacientelongitude"
+                            "ifropacientelongitude",
+                            "ifrotabelaid",
+                            "ifrotabelanome"
                         ]),
                     ),
                     (
@@ -360,7 +434,18 @@ impl UpdateGraphDataService {
                 // Mapa de calor por bairro
                 list_params.push(HashMap::from([
                     ("table", Value::String("bpa".to_string())),
-                    ("column", json!(["ifrocompetencia", "ifropacienteendereco", "ifropacientebairro", "ifropacientelatitude", "ifropacientelongitude"])),
+                    (
+                        "column",
+                        json!([
+                            "ifrocompetencia",
+                            "ifropacienteendereco",
+                            "ifropacientebairro",
+                            "ifropacientelatitude",
+                            "ifropacientelongitude",
+                            "ifrotabelaid",
+                            "ifrotabelanome"
+                        ]),
+                    ),
                     ("identifier", Value::String("heat_map_with_the_number_of_medical_appointments_by_neighborhood".to_string())),
                     ("table_json", Value::String("heat_map_with_the_number_of_medical_appointments_by_neighborhood".to_string())),
                     ("method", Value::String("create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood".to_string()))
@@ -590,6 +675,14 @@ impl UpdateGraphDataService {
             ("create_dict_to_number_of_visits_per_doctor", Some(df)) => self
                 .data_processing
                 .create_dict_to_number_of_visits_per_doctor(main_df, df)
+                .await
+                .map_err(|e| {
+                    error!("Erro no método {}: {}", method, e);
+                    AppError::DataProcessingError(e.to_string())
+                }),
+            ("create_dict_to_number_of_appointments_without_medical_consultation", None) => self
+                .data_processing
+                .create_dict_to_number_of_appointments_without_medical_consultation(main_df)
                 .await
                 .map_err(|e| {
                     error!("Erro no método {}: {}", method, e);

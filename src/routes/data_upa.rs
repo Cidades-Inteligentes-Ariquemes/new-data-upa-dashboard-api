@@ -67,6 +67,10 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
                     .route(web::get().to(visualization_data_handler::appointments_per_cid))
             )
             .service(
+                web::resource("/user/{user_id}/unit/{unit_id}/number-of-appointments-without-medical-consultation")
+                    .route(web::get().to(visualization_data_handler::appointments_without_medical_consultation))
+            )
+            .service(
                 web::resource("/user/{user_id}/unit/{unit_id}/number-of-appointments-per-classification")
                     .route(web::get().to(visualization_data_handler::appointments_per_classification))
             )

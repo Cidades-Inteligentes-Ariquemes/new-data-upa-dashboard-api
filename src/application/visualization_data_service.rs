@@ -814,6 +814,61 @@ impl VisualizationDataService {
         }
     }
 
+    pub async fn appointments_without_medical_consultation(
+        &self,
+        user_id: String,
+        unidade_id: i32,
+    ) -> Result<HttpResponse, AppError> {
+        info!(
+            "Fetching number of appointments without medical consultation for unit {} and user {}",
+            unidade_id, user_id
+        );
+
+        self.validate_user_access(user_id, unidade_id).await?;
+
+        self.verify_unit_data_exists(
+            "number_of_appointments_without_medical_consultation",
+            "number_of_appointments_without_medical_consultation",
+            Some(unidade_id),
+        )
+        .await?;
+
+        match self
+            .data_repo
+            .fetch_nested_json(
+                "number_of_appointments_without_medical_consultation",
+                "number_of_appointments_without_medical_consultation",
+                Some(unidade_id),
+            )
+            .await
+        {
+            Ok(data) => {
+                if data.is_empty() {
+                    error!(
+                        "Error fetching appointments without medical consultation for unit {}. Organized data is empty",
+                        unidade_id
+                    );
+                    return Err(AppError::BadRequest("No data found".to_string()));
+                }
+
+                let corrected_data = self.correct_keys(data);
+
+                info!(
+                    "Appointments without medical consultation fetched successfully for unit {}",
+                    unidade_id
+                );
+                Ok(ApiResponse::success(corrected_data).into_response())
+            }
+            Err(e) => {
+                error!(
+                    "Error fetching appointments without medical consultation for unit {}: {:?}",
+                    unidade_id, e
+                );
+                Err(AppError::InternalServerError)
+            }
+        }
+    }
+
     pub async fn appointments_per_classification(
         &self,
         user_id: String,
