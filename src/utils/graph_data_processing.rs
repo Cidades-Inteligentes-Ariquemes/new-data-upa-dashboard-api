@@ -106,6 +106,62 @@ fn increment_grouped_unique_count(
     }
 }
 
+fn finalize_summary_counts(mut counts: HashMap<String, i64>) -> HashMap<String, i64> {
+    let total = counts
+        .iter()
+        .filter(|(key, _)| key.as_str() != KEY_TODOS)
+        .map(|(_, value)| *value)
+        .sum();
+    counts.insert(KEY_TODOS.to_string(), total);
+    counts
+}
+
+fn sum_grouped_counts(
+    grouped_counts: &HashMap<String, HashMap<String, i64>>,
+) -> HashMap<String, i64> {
+    let mut totals = HashMap::new();
+
+    for counts in grouped_counts.values() {
+        for (key, value) in counts {
+            *totals.entry(key.clone()).or_insert(0) += *value;
+        }
+    }
+
+    totals
+}
+
+fn build_difference_counts(
+    total_real_counts: &HashMap<String, i64>,
+    counted_totals: &HashMap<String, i64>,
+) -> HashMap<String, i64> {
+    let mut competencias = HashSet::new();
+    competencias.extend(
+        total_real_counts
+            .keys()
+            .filter(|key| key.as_str() != KEY_TODOS)
+            .cloned(),
+    );
+    competencias.extend(
+        counted_totals
+            .keys()
+            .filter(|key| key.as_str() != KEY_TODOS)
+            .cloned(),
+    );
+
+    let mut differences = HashMap::new();
+    let mut total = 0_i64;
+
+    for competencia in competencias {
+        let difference = total_real_counts.get(&competencia).copied().unwrap_or(0)
+            - counted_totals.get(&competencia).copied().unwrap_or(0);
+        total += difference;
+        differences.insert(competencia, difference);
+    }
+
+    differences.insert(KEY_TODOS.to_string(), total);
+    differences
+}
+
 fn increment_summary_with_recent_keys(
     counts: &mut HashMap<String, i64>,
     competencia: &str,
@@ -132,6 +188,29 @@ fn increment_group_with_recent_keys(
     let group_counts = counts.entry(group.to_string()).or_default();
     ensure_recent_keys(group_counts);
     increment_summary_with_recent_keys(group_counts, competencia, in_60, in_90);
+}
+
+fn build_visits_response_with_extra_data(
+    grouped_counts: HashMap<String, HashMap<String, i64>>,
+    total_real_counts: HashMap<String, i64>,
+) -> Value {
+    let counted_totals = sum_grouped_counts(&grouped_counts);
+    let non_counted = build_difference_counts(&total_real_counts, &counted_totals);
+
+    let mut result = serde_json::Map::new();
+    for (professional_name, counts) in grouped_counts {
+        result.insert(professional_name, json!(counts));
+    }
+
+    result.insert(
+        "dados_extras".to_string(),
+        json!({
+            "atendimentos_nao_contabilizados": non_counted,
+            "quantidade_total_real": total_real_counts,
+        }),
+    );
+
+    Value::Object(result)
 }
 
 fn translate_day_of_week(day_name: &str) -> Option<&'static str> {
@@ -181,6 +260,105 @@ fn is_special_heat_map_bucket(bucket_name: &str) -> bool {
 pub struct DataProcessingForGraphPlotting;
 
 impl DataProcessingForGraphPlotting {
+    fn build_total_real_counts(
+        &self,
+        df: &DataFrame,
+        table_name: &str,
+        required_role: Option<&str>,
+    ) -> HashMap<String, i64> {
+        let mut total_real_counts = HashMap::new();
+        let mut seen_total_real = HashSet::new();
+
+        for row_idx in 0..df.height() {
+            if !row_matches_table_name(df, row_idx, table_name) {
+                continue;
+            }
+
+            if let Some(role_expected) = required_role {
+                let Some(role) = get_non_empty_cell_string(df, "ifroprofissionalcbods", row_idx)
+                else {
+                    continue;
+                };
+
+                if role != role_expected {
+                    continue;
+                }
+            }
+
+            let Some(competencia) = get_non_empty_cell_string(df, "ifrocompetencia", row_idx)
+            else {
+                continue;
+            };
+
+            let Some(ifrotabelaid) = get_non_empty_cell_string(df, "ifrotabelaid", row_idx) else {
+                continue;
+            };
+
+            increment_competencia_unique_count(
+                &mut seen_total_real,
+                &mut total_real_counts,
+                &competencia,
+                &ifrotabelaid,
+            );
+        }
+
+        finalize_summary_counts(total_real_counts)
+    }
+
+    fn build_grouped_visits_counts(
+        &self,
+        df: &DataFrame,
+        blocked_names: &HashSet<String>,
+        table_name: &str,
+        required_role: &str,
+    ) -> HashMap<String, HashMap<String, i64>> {
+        let mut grouped_counts = HashMap::new();
+        let mut seen = HashSet::new();
+
+        for row_idx in 0..df.height() {
+            if !row_matches_table_name(df, row_idx, table_name) {
+                continue;
+            }
+
+            let Some(role) = get_non_empty_cell_string(df, "ifroprofissionalcbods", row_idx) else {
+                continue;
+            };
+
+            if role != required_role {
+                continue;
+            }
+
+            let Some(professional_name) =
+                get_non_empty_cell_string(df, "ifroprofissionalnome", row_idx)
+            else {
+                continue;
+            };
+
+            if blocked_names.contains(&professional_name) {
+                continue;
+            }
+
+            let Some(competencia) = get_non_empty_cell_string(df, "ifrocompetencia", row_idx)
+            else {
+                continue;
+            };
+
+            let Some(ifrotabelaid) = get_non_empty_cell_string(df, "ifrotabelaid", row_idx) else {
+                continue;
+            };
+
+            increment_grouped_unique_count(
+                &mut seen,
+                &mut grouped_counts,
+                &professional_name,
+                &competencia,
+                &ifrotabelaid,
+            );
+        }
+
+        grouped_counts
+    }
+
     // Função para obter colunas para plotagem
     pub fn columns_to_plot_graphs() -> HashMap<String, Value> {
         let mut result = HashMap::new();
@@ -631,51 +809,18 @@ impl DataProcessingForGraphPlotting {
             .into_iter()
             .filter_map(|opt_s| opt_s.map(String::from))
             .collect();
+        let organized_data = self.build_grouped_visits_counts(
+            df,
+            &non_nurse_names,
+            TABLE_ACOLHIMENTO,
+            ROLE_ENFERMEIRO,
+        );
+        let total_real_counts = self.build_total_real_counts(df, TABLE_ACOLHIMENTO, None);
 
-        let mut organized_data = HashMap::new();
-        let mut seen = HashSet::new();
-
-        for row_idx in 0..df.height() {
-            if !row_matches_table_name(df, row_idx, TABLE_ACOLHIMENTO) {
-                continue;
-            }
-
-            let Some(role) = get_non_empty_cell_string(df, "ifroprofissionalcbods", row_idx) else {
-                continue;
-            };
-
-            if role != ROLE_ENFERMEIRO {
-                continue;
-            }
-
-            let Some(nurse_name) = get_non_empty_cell_string(df, "ifroprofissionalnome", row_idx)
-            else {
-                continue;
-            };
-
-            if non_nurse_names.contains(&nurse_name) {
-                continue;
-            }
-
-            let Some(competencia) = get_non_empty_cell_string(df, "ifrocompetencia", row_idx)
-            else {
-                continue;
-            };
-
-            let Some(ifrotabelaid) = get_non_empty_cell_string(df, "ifrotabelaid", row_idx) else {
-                continue;
-            };
-
-            increment_grouped_unique_count(
-                &mut seen,
-                &mut organized_data,
-                &nurse_name,
-                &competencia,
-                &ifrotabelaid,
-            );
-        }
-
-        Ok(json!(organized_data))
+        Ok(build_visits_response_with_extra_data(
+            organized_data,
+            total_real_counts,
+        ))
     }
 
     pub async fn create_dict_to_number_of_visits_per_doctor(
@@ -689,51 +834,19 @@ impl DataProcessingForGraphPlotting {
             .into_iter()
             .filter_map(|opt_s| opt_s.map(String::from))
             .collect();
+        let organized_data = self.build_grouped_visits_counts(
+            df,
+            &non_doctor_names,
+            TABLE_CONSULTA_MEDICA,
+            ROLE_MEDICO_CLINICO,
+        );
+        let total_real_counts =
+            self.build_total_real_counts(df, TABLE_CONSULTA_MEDICA, Some(ROLE_MEDICO_CLINICO));
 
-        let mut organized_data = HashMap::new();
-        let mut seen = HashSet::new();
-
-        for row_idx in 0..df.height() {
-            if !row_matches_table_name(df, row_idx, TABLE_CONSULTA_MEDICA) {
-                continue;
-            }
-
-            let Some(role) = get_non_empty_cell_string(df, "ifroprofissionalcbods", row_idx) else {
-                continue;
-            };
-
-            if role != ROLE_MEDICO_CLINICO {
-                continue;
-            }
-
-            let Some(doctor_name) = get_non_empty_cell_string(df, "ifroprofissionalnome", row_idx)
-            else {
-                continue;
-            };
-
-            if non_doctor_names.contains(&doctor_name) {
-                continue;
-            }
-
-            let Some(competencia) = get_non_empty_cell_string(df, "ifrocompetencia", row_idx)
-            else {
-                continue;
-            };
-
-            let Some(ifrotabelaid) = get_non_empty_cell_string(df, "ifrotabelaid", row_idx) else {
-                continue;
-            };
-
-            increment_grouped_unique_count(
-                &mut seen,
-                &mut organized_data,
-                &doctor_name,
-                &competencia,
-                &ifrotabelaid,
-            );
-        }
-
-        Ok(json!(organized_data))
+        Ok(build_visits_response_with_extra_data(
+            organized_data,
+            total_real_counts,
+        ))
     }
 
     pub async fn create_dict_to_number_of_appointments_without_medical_consultation(
@@ -1423,6 +1536,131 @@ mod tests {
         .unwrap();
 
         assert_eq!(result, json!({ "2026-3": 2 }));
+    }
+
+    #[test]
+    fn number_of_visits_per_nurse_includes_dados_extras_with_real_and_missing_counts() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-3", "2026-3", "2026-3", "2026-4", "2026-4", "2026-4"],
+            "ifroprofissionalcbods" => [
+                "ENFERMEIRO",
+                "ENFERMEIRO",
+                "TECNICO DE ENFERMAGEM",
+                "ENFERMEIRO",
+                "ENFERMEIRO",
+                "ENFERMEIRO"
+            ],
+            "ifroprofissionalnome" => ["ANA", "RENAN", "TEC", "ANA", "ANA", "RENAN"],
+            "ifrotabelanome" => [
+                "Acolhimento",
+                "Acolhimento",
+                "Acolhimento",
+                "Acolhimento",
+                "Acolhimento",
+                "Acolhimento"
+            ],
+            "ifrotabelaid" => [1i64, 2, 3, 4, 4, 5]
+        )
+        .unwrap();
+        let df_non_nurse = df!(
+            "ifroprofissionalnome" => ["RENAN"]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_number_of_visits_per_nurse(&df, &df_non_nurse),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "ANA": {
+                    "2026-3": 1,
+                    "2026-4": 1,
+                    "todos": 2
+                },
+                "dados_extras": {
+                    "atendimentos_nao_contabilizados": {
+                        "2026-3": 2,
+                        "2026-4": 1,
+                        "todos": 3
+                    },
+                    "quantidade_total_real": {
+                        "2026-3": 3,
+                        "2026-4": 2,
+                        "todos": 5
+                    }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn number_of_visits_per_doctor_includes_dados_extras_with_real_and_missing_counts() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-3", "2026-3", "2026-3", "2026-4", "2026-4", "2026-4"],
+            "ifroprofissionalcbods" => [
+                "MEDICO CLINICO",
+                "MEDICO CLINICO",
+                "MEDICO CIRURGIAO GERAL",
+                "MEDICO CLINICO",
+                "MEDICO CLINICO",
+                "MEDICO CLINICO"
+            ],
+            "ifroprofissionalnome" => [
+                "ALICE",
+                "GILLIARD",
+                "CIRURGIAO",
+                "ALICE",
+                "ALICE",
+                "GILLIARD"
+            ],
+            "ifrotabelanome" => [
+                "ConsultaMedica",
+                "ConsultaMedica",
+                "ConsultaMedica",
+                "ConsultaMedica",
+                "ConsultaMedica",
+                "ConsultaMedica"
+            ],
+            "ifrotabelaid" => [11i64, 12, 13, 14, 14, 15]
+        )
+        .unwrap();
+        let df_non_doctors = df!(
+            "ifroprofissionalnome" => ["GILLIARD"]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_number_of_visits_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "ALICE": {
+                    "2026-3": 1,
+                    "2026-4": 1,
+                    "todos": 2
+                },
+                "dados_extras": {
+                    "atendimentos_nao_contabilizados": {
+                        "2026-3": 1,
+                        "2026-4": 1,
+                        "todos": 2
+                    },
+                    "quantidade_total_real": {
+                        "2026-3": 2,
+                        "2026-4": 2,
+                        "todos": 4
+                    }
+                }
+            })
+        );
     }
 
     #[test]
