@@ -705,40 +705,52 @@ components:
                 format: int64
                 description: "Number of services"
           description: "Services by hour data"
+
+    VisitsByCompetenciaSummary:
+      type: object
+      additionalProperties:
+        type: integer
+        format: int64
+      description: "Map with counts by competence and the `todos` key"
+
+    VisitsExtraData:
+      type: object
+      properties:
+        atendimentos_nao_contabilizados:
+          $ref: "#/components/schemas/VisitsByCompetenciaSummary"
+        quantidade_total_real:
+          $ref: "#/components/schemas/VisitsByCompetenciaSummary"
+      description: "Extra aggregated metadata for the graph"
+
+    VisitsPerNurseData:
+      type: object
+      description: "Object keyed by nurse name plus the reserved `dados_extras` key"
+      additionalProperties:
+        oneOf:
+          - $ref: "#/components/schemas/VisitsByCompetenciaSummary"
+          - $ref: "#/components/schemas/VisitsExtraData"
     
     VisitsPerNurseResponse:
       type: object
       properties:
         data:
-          type: array
-          items:
-            type: object
-            properties:
-              nurse:
-                type: string
-                description: "Nurse name"
-              count:
-                type: integer
-                format: int64
-                description: "Number of visits"
-          description: "Visits per nurse data"
+          $ref: "#/components/schemas/VisitsPerNurseData"
+          description: "Visits per nurse data grouped by professional name"
+
+    VisitsPerDoctorData:
+      type: object
+      description: "Object keyed by doctor name plus the reserved `dados_extras` key"
+      additionalProperties:
+        oneOf:
+          - $ref: "#/components/schemas/VisitsByCompetenciaSummary"
+          - $ref: "#/components/schemas/VisitsExtraData"
     
     VisitsPerDoctorResponse:
       type: object
       properties:
         data:
-          type: array
-          items:
-            type: object
-            properties:
-              doctor:
-                type: string
-                description: "Doctor name"
-              count:
-                type: integer
-                format: int64
-                description: "Number of visits"
-          description: "Visits per doctor data"
+          $ref: "#/components/schemas/VisitsPerDoctorData"
+          description: "Visits per doctor data grouped by professional name"
     
     AverageTimePerDoctorResponse:
       type: object
