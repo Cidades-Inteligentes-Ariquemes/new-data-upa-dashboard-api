@@ -1,0 +1,15 @@
+.env
+.env.*
+target/
+.git/
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+compose-cloudflare.yml
+README.md
+*.md
+backup-dados-upa.sql
+backup-dados-upa_att.sql
+.vscode/
+.idea/
