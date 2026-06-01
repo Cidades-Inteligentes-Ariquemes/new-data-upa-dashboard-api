@@ -1254,21 +1254,21 @@ Para recuperar a senha, o usuário deve seguir este fluxo sequencial:
 - **Método**: GET
 - **Parâmetros de rota**: `user_id` (ID do usuário), `unidade_id` (ID da unidade) 
 - **Nível de acesso**: Usuário Comum ou Administrador
-- **Descrição**: Retorna quantidade de visitas realizadas por cada enfermeiro
+- **Descrição**: Retorna um objeto com a quantidade de visitas realizadas por cada enfermeiro e a chave reservada `dados_extras`, que inclui `atendimentos_nao_contabilizados` e `quantidade_total_real`
 
 #### 12. Número de Visitas por Médico
 - **URL**: `/api/data/user/{user_id}/unit/{unidade_id}/number-of-visits-per-doctor`
 - **Método**: GET
 - **Parâmetros de rota**: `user_id` (ID do usuário), `unidade_id` (ID da unidade)
 - **Nível de acesso**: Usuário Comum ou Administrador
-- **Descrição**: Retorna quantidade de visitas realizadas por cada médico
+- **Descrição**: Retorna um objeto com a quantidade de visitas realizadas por cada médico e a chave reservada `dados_extras`, que inclui `atendimentos_nao_contabilizados` e `quantidade_total_real`
 
 #### 13. Tempo Médio por Médico
 - **URL**: `/api/data/user/{user_id}/unit/{unidade_id}/average-time-in-minutes-per-doctor`
 - **Método**: GET
 - **Parâmetros de rota**: `user_id` (ID do usuário), `unidade_id` (ID da unidade)
 - **Nível de acesso**: Usuário Comum ou Administrador
-- **Descrição**: Retorna tempo médio de atendimento em minutos por médico
+- **Descrição**: Retorna um objeto com o tempo médio, em minutos, entre atendimentos consecutivos por médico e por competência
 
 #### 14. Mapa de Calor com Indicação de Doenças
 - **URL**: `/api/data/user/{user_id}/unit/{unidade_id}/heat-map-with-disease-indication`
