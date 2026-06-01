@@ -21,9 +21,6 @@ RUN apt-get update && apt-get install -y \
 # Copia o binário compilado do estágio de build
 COPY --from=builder /app/target/release/new-data-upa-dashboard-api .
 
-# Copia o arquivo .env para o container
-COPY --from=builder /app/.env .
-
 # Defini as permissões de execução
 RUN chmod +x ./new-data-upa-dashboard-api
 
