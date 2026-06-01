@@ -751,23 +751,26 @@ components:
         data:
           $ref: "#/components/schemas/VisitsPerDoctorData"
           description: "Visits per doctor data grouped by professional name"
+
+    AverageTimeByCompetenciaSummary:
+      type: object
+      additionalProperties:
+        type: number
+        format: float
+      description: "Map with average interval time in minutes by competence and the `todos` key"
+
+    AverageTimePerDoctorData:
+      type: object
+      description: "Object keyed by doctor name with average interval time in minutes grouped by competence"
+      additionalProperties:
+        $ref: "#/components/schemas/AverageTimeByCompetenciaSummary"
     
     AverageTimePerDoctorResponse:
       type: object
       properties:
         data:
-          type: array
-          items:
-            type: object
-            properties:
-              doctor:
-                type: string
-                description: "Doctor name"
-              average_time:
-                type: number
-                format: float
-                description: "Average time in minutes"
-          description: "Average time per doctor data"
+          $ref: "#/components/schemas/AverageTimePerDoctorData"
+          description: "Average interval time in minutes per doctor grouped by professional name"
     
     HeatMapResponse:
       type: object
