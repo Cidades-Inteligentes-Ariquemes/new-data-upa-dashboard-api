@@ -1,13 +1,24 @@
-use chrono::{Duration, NaiveDate};
-use polars::lazy::dsl::{col, lit};
+use chrono::{Duration, NaiveDate, NaiveDateTime, NaiveTime};
+use log::info;
 use polars::prelude::*;
 use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::error::Error;
 
 type DiseaseLocationMap = HashMap<String, HashMap<String, HashMap<String, (f64, f64, i64)>>>;
+#[derive(Clone)]
+struct DoctorAttendanceRecord {
+    doctor_id: String,
+    doctor_name: String,
+    competencia: String,
+    date: NaiveDate,
+    timestamp: NaiveDateTime,
+}
 
 const DATE_FMT: &str = "%Y-%m-%d";
+const TIME_FMT_FRAC: &str = "%H:%M:%S%.f";
+const TIME_FMT: &str = "%H:%M:%S";
+const TIME_FMT_SHORT: &str = "%H:%M";
 const KEY_60: &str = "ultimos_60_dias";
 const KEY_90: &str = "ultimos_90_dias";
 const KEY_TODOS: &str = "todos";
@@ -211,6 +222,64 @@ fn build_visits_response_with_extra_data(
     );
 
     Value::Object(result)
+}
+
+fn parse_attendance_time(time_str: &str) -> Option<NaiveTime> {
+    NaiveTime::parse_from_str(time_str, TIME_FMT_FRAC)
+        .ok()
+        .or_else(|| NaiveTime::parse_from_str(time_str, TIME_FMT).ok())
+        .or_else(|| NaiveTime::parse_from_str(time_str, TIME_FMT_SHORT).ok())
+}
+
+fn round_to_two_decimals(value: f64) -> f64 {
+    (value * 100.0).round() / 100.0
+}
+
+fn daily_average_interval_minutes(day_records: &[DoctorAttendanceRecord]) -> Option<f64> {
+    if day_records.len() < 2 {
+        return None;
+    }
+
+    let mut sorted = day_records.to_vec();
+    sorted.sort_by_key(|r| r.timestamp);
+
+    let mut total = 0.0_f64;
+    let mut valid_pairs = 0_usize;
+
+    for pair in sorted.windows(2) {
+        let minutes = (pair[1].timestamp - pair[0].timestamp).num_seconds() as f64 / 60.0;
+        if minutes > 60.0 {
+            continue;
+        }
+        total += minutes;
+        valid_pairs += 1;
+    }
+
+    if valid_pairs == 0 {
+        return None;
+    }
+
+    Some(round_to_two_decimals(total / valid_pairs as f64))
+}
+
+fn mean_of_daily_averages(values: &[f64]) -> Option<f64> {
+    if values.is_empty() {
+        return None;
+    }
+    let sum: f64 = values.iter().sum();
+    Some(round_to_two_decimals(sum / values.len() as f64))
+}
+
+fn pick_canonical_name(records: &[DoctorAttendanceRecord]) -> String {
+    let mut counts: HashMap<&str, usize> = HashMap::new();
+    for r in records {
+        *counts.entry(r.doctor_name.as_str()).or_insert(0) += 1;
+    }
+    counts
+        .into_iter()
+        .max_by(|a, b| a.1.cmp(&b.1).then_with(|| b.0.cmp(a.0)))
+        .map(|(name, _)| name.to_string())
+        .unwrap_or_default()
 }
 
 fn translate_day_of_week(day_name: &str) -> Option<&'static str> {
@@ -441,6 +510,7 @@ impl DataProcessingForGraphPlotting {
             "average_time_per_doctor".to_string(),
             json!([
                 "ifrocompetencia",
+                "ifrodataatendimento",
                 "ifrohoraatendimento",
                 "ifroprofissionalid",
                 "ifroprofissionalcbods",
@@ -921,158 +991,156 @@ impl DataProcessingForGraphPlotting {
         df: &DataFrame,
         df_non_doctors: &DataFrame,
     ) -> Result<Value, Box<dyn Error + Send + Sync>> {
-        // Obter lista de médicos a excluir
-        let non_doctor_names: Vec<String> = df_non_doctors
+        let non_doctor_names: HashSet<String> = df_non_doctors
             .column("ifroprofissionalnome")?
             .str()?
             .into_iter()
             .filter_map(|opt_s| opt_s.map(String::from))
             .collect();
 
-        // Filtrar DataFrame para médicos e consulta médica com hora de atendimento
-        let df_doctor_consulta = df
-            .clone()
-            .lazy()
-            .filter(
-                (col("ifroprofissionalcbods")
-                    .eq(lit("MEDICO CLINICO"))
-                    .or(col("ifroprofissionalcbods").eq(lit("MEDICO CIRURGIAO GERAL"))))
-                .and(col("ifrotabelanome").eq(lit("ConsultaMedica")))
-                .and(col("ifrohoraatendimento").is_not_null()),
-            )
-            .collect()?;
+        let mut records_by_doctor: BTreeMap<String, Vec<DoctorAttendanceRecord>> = BTreeMap::new();
 
-        // Filtrar nomes não desejados
-        let mut keep_rows = Vec::with_capacity(df_doctor_consulta.height());
-
-        for i in 0..df_doctor_consulta.height() {
-            let nome = df_doctor_consulta
-                .column("ifroprofissionalnome")?
-                .str()?
-                .get(i)
-                .unwrap_or("");
-            let keep = !non_doctor_names.contains(&nome.to_string());
-            keep_rows.push(keep);
-        }
-
-        // Converter para Series e filtrar
-        let mask = BooleanChunked::new("mask".into(), keep_rows);
-        let df_filtered = df_doctor_consulta.filter(&mask)?;
-
-        // Calcular tempo em minutos
-        let mut minutes_values = Vec::with_capacity(df_filtered.height());
-
-        for i in 0..df_filtered.height() {
-            let time_str = df_filtered
-                .column("ifrohoraatendimento")?
-                .str()?
-                .get(i)
-                .unwrap_or("");
-            let parts: Vec<&str> = time_str.split(':').collect();
-
-            let minutes = if parts.len() >= 3 {
-                let hours = parts[0].parse::<f64>().unwrap_or(0.0);
-                let mins = parts[1].parse::<f64>().unwrap_or(0.0);
-                let secs = parts[2].parse::<f64>().unwrap_or(0.0);
-
-                hours * 60.0 + mins + secs / 60.0
-            } else {
-                0.0
-            };
-
-            minutes_values.push(minutes);
-        }
-
-        // Criar Series com os minutos
-        let minutes_series = Series::new("time_minutes".into(), minutes_values);
-        let mut df_with_time = df_filtered.clone();
-        df_with_time.with_column(minutes_series)?;
-
-        // Filtrar tempos inválidos
-        let valid_times_mask = df_with_time.column("time_minutes")?.f64()?.gt(0.0);
-
-        let df_valid_times = df_with_time.filter(&valid_times_mask)?;
-
-        // Obter nomes únicos de médicos
-        let unique_doctors = df_valid_times
-            .column("ifroprofissionalnome")?
-            .unique()?
-            .str()?
-            .into_iter()
-            .filter_map(|opt_s| opt_s.map(String::from))
-            .collect::<Vec<String>>();
-
-        // Criar dicionário organizado para cada médico
-        let mut organized_data = HashMap::new();
-
-        for doctor_name in unique_doctors {
-            // Filtrar para este médico
-            let doctor_mask = df_valid_times
-                .column("ifroprofissionalnome")?
-                .str()?
-                .equal(doctor_name.as_str());
-
-            let df_doctor = df_valid_times.filter(&doctor_mask)?;
-
-            // Calcular média total do médico
-            let time_values = df_doctor.column("time_minutes")?.f64()?;
-            let sum: f64 = time_values
-                .iter()
-                .fold(0.0, |acc, opt_val| acc + opt_val.unwrap_or(0.0));
-
-            let avg_total = if df_doctor.height() > 0 {
-                sum / df_doctor.height() as f64
-            } else {
-                0.0
-            };
-
-            // Formatar tempo médio total
-            let total_hours = (avg_total / 60.0).floor() as i32;
-            let total_mins = (avg_total % 60.0).round() as i32;
-            let total_formatted = format!("{:02}:{:02}", total_hours, total_mins);
-
-            // Iniciar dados do médico
-            let mut doctor_data = HashMap::new();
-            doctor_data.insert("todos".to_string(), json!(total_formatted));
-
-            // Calcular médias por competência
-            let competencias = df_doctor
-                .column("ifrocompetencia")?
-                .unique()?
-                .str()?
-                .into_iter()
-                .filter_map(|opt_s| opt_s.map(String::from))
-                .collect::<Vec<String>>();
-
-            for competencia in competencias {
-                let comp_mask = df_doctor
-                    .column("ifrocompetencia")?
-                    .str()?
-                    .equal(competencia.as_str());
-
-                let df_comp = df_doctor.filter(&comp_mask)?;
-
-                // Calcular média para esta competência
-                let comp_time_values = df_comp.column("time_minutes")?.f64()?;
-                let comp_sum: f64 = comp_time_values
-                    .iter()
-                    .fold(0.0, |acc, opt_val| acc + opt_val.unwrap_or(0.0));
-
-                let avg_comp = if df_comp.height() > 0 {
-                    comp_sum / df_comp.height() as f64
-                } else {
-                    0.0
-                };
-
-                // Formatar tempo médio por competência
-                let comp_hours = (avg_comp / 60.0).floor() as i32;
-                let comp_mins = (avg_comp % 60.0).round() as i32;
-                let comp_formatted = format!("{:02}:{:02}", comp_hours, comp_mins);
-
-                doctor_data.insert(competencia, json!(comp_formatted));
+        for row_idx in 0..df.height() {
+            if !row_matches_table_name(df, row_idx, TABLE_CONSULTA_MEDICA) {
+                continue;
             }
 
-            organized_data.insert(doctor_name, doctor_data);
+            let Some(role) = get_non_empty_cell_string(df, "ifroprofissionalcbods", row_idx) else {
+                continue;
+            };
+
+            if role != ROLE_MEDICO_CLINICO && role != ROLE_MEDICO_CIRURGIAO_GERAL {
+                continue;
+            }
+
+            let Some(doctor_id) = get_non_empty_cell_string(df, "ifroprofissionalid", row_idx)
+            else {
+                continue;
+            };
+
+            let Some(doctor_name) = get_non_empty_cell_string(df, "ifroprofissionalnome", row_idx)
+            else {
+                continue;
+            };
+
+            if non_doctor_names.contains(&doctor_name) {
+                continue;
+            }
+
+            let Some(competencia) = get_non_empty_cell_string(df, "ifrocompetencia", row_idx)
+            else {
+                continue;
+            };
+
+            let Some(date_str) = get_non_empty_cell_string(df, "ifrodataatendimento", row_idx)
+            else {
+                continue;
+            };
+            let Some(time_str) = get_non_empty_cell_string(df, "ifrohoraatendimento", row_idx)
+            else {
+                continue;
+            };
+
+            let Ok(date) = NaiveDate::parse_from_str(&date_str, DATE_FMT) else {
+                continue;
+            };
+            let Some(time) = parse_attendance_time(&time_str) else {
+                continue;
+            };
+
+            records_by_doctor
+                .entry(doctor_id.clone())
+                .or_default()
+                .push(DoctorAttendanceRecord {
+                    doctor_id,
+                    doctor_name,
+                    competencia,
+                    date,
+                    timestamp: NaiveDateTime::new(date, time),
+                });
+        }
+
+        // Resolve nome canônico (mais frequente, tiebreak alfabético) para cada ID
+        // e detecta colisões (IDs distintos com mesmo nome canônico).
+        let mut canonical_name_by_id: BTreeMap<String, String> = BTreeMap::new();
+        for (id, records) in &records_by_doctor {
+            canonical_name_by_id.insert(id.clone(), pick_canonical_name(records));
+        }
+        let mut ids_by_canonical: HashMap<String, Vec<String>> = HashMap::new();
+        for (id, name) in &canonical_name_by_id {
+            ids_by_canonical
+                .entry(name.clone())
+                .or_default()
+                .push(id.clone());
+        }
+
+        let mut organized_data: HashMap<String, HashMap<String, Value>> = HashMap::new();
+
+        for (doctor_id, mut records) in records_by_doctor {
+            // Etapa 2 — dedup por (doctor_id, timestamp). Mantém a primeira ocorrência.
+            let mut seen: HashSet<(String, NaiveDateTime)> = HashSet::new();
+            records.retain(|r| seen.insert((r.doctor_id.clone(), r.timestamp)));
+
+            // Agrupa registros por dia (NaiveDate). Cada dia carrega sua competência.
+            let mut records_by_day: BTreeMap<NaiveDate, Vec<DoctorAttendanceRecord>> =
+                BTreeMap::new();
+            for record in records {
+                records_by_day
+                    .entry(record.date)
+                    .or_default()
+                    .push(record);
+            }
+
+            // Calcula média diária para cada dia (descarta dias sem par válido).
+            let mut all_daily_means: Vec<f64> = Vec::new();
+            let mut daily_means_by_competencia: HashMap<String, Vec<f64>> = HashMap::new();
+
+            for (_day, day_records) in records_by_day {
+                let Some(daily_mean) = daily_average_interval_minutes(&day_records) else {
+                    continue;
+                };
+                let competencia = day_records[0].competencia.clone();
+                all_daily_means.push(daily_mean);
+                daily_means_by_competencia
+                    .entry(competencia)
+                    .or_default()
+                    .push(daily_mean);
+            }
+
+            // Médico sem nenhum dia com par válido é omitido do JSON.
+            let Some(todos) = mean_of_daily_averages(&all_daily_means) else {
+                continue;
+            };
+
+            let mut doctor_data: HashMap<String, Value> = HashMap::new();
+            doctor_data.insert(KEY_TODOS.to_string(), json!(todos));
+            for (competencia, daily_means) in daily_means_by_competencia {
+                if let Some(monthly_mean) = mean_of_daily_averages(&daily_means) {
+                    doctor_data.insert(competencia, json!(monthly_mean));
+                }
+            }
+
+            // Define a chave do médico no JSON: nome puro se o nome canônico é único entre IDs;
+            // caso contrário, anexa "(#<id>)" para diferenciar cadastros distintos com mesmo nome.
+            let canonical_name = canonical_name_by_id
+                .get(&doctor_id)
+                .cloned()
+                .unwrap_or_default();
+            let collides = ids_by_canonical
+                .get(&canonical_name)
+                .map(|ids| ids.len() > 1)
+                .unwrap_or(false);
+            let display_key = if collides {
+                info!(
+                    "average_time.name_collision id={} canonical_name={}",
+                    doctor_id, canonical_name
+                );
+                format!("{} (#{})", canonical_name, doctor_id)
+            } else {
+                canonical_name
+            };
+
+            organized_data.insert(display_key, doctor_data);
         }
 
         Ok(json!(organized_data))
@@ -1658,6 +1726,406 @@ mod tests {
                         "2026-4": 2,
                         "todos": 4
                     }
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn average_time_per_doctor_uses_daily_intervals_and_returns_numeric_minutes() {
+        let df = df!(
+            "ifrocompetencia" => ["2026-1", "2026-1", "2026-1", "2026-2", "2026-2"],
+            "ifrodataatendimento" => [
+                "2026-01-01",
+                "2026-01-01",
+                "2026-01-01",
+                "2026-02-01",
+                "2026-02-01"
+            ],
+            "ifrohoraatendimento" => ["08:30:00", "08:55:00", "09:05:00", "16:00:00", "16:20:00"],
+            "ifroprofissionalcbods" => [
+                "MEDICO CLINICO",
+                "MEDICO CLINICO",
+                "MEDICO CLINICO",
+                "MEDICO CLINICO",
+                "MEDICO CLINICO"
+            ],
+            "ifroprofissionalid" => ["100", "100", "100", "100", "100"],
+            "ifroprofissionalnome" => ["ALICE", "ALICE", "ALICE", "ALICE", "ALICE"],
+            "ifrotabelanome" => [
+                "ConsultaMedica",
+                "ConsultaMedica",
+                "ConsultaMedica",
+                "ConsultaMedica",
+                "ConsultaMedica"
+            ]
+        )
+        .unwrap();
+        let df_non_doctors = df!(
+            "ifroprofissionalnome" => ["GILLIARD"]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        // Dia 2026-01-01: pares (08:30→08:55)=25, (08:55→09:05)=10 → diária = (25+10)/2 = 17.5
+        // Dia 2026-02-01: par (16:00→16:20)=20 → diária = 20.0
+        // "2026-1" = mean({17.5}) = 17.5
+        // "2026-2" = mean({20.0}) = 20.0
+        // "todos"  = mean({17.5, 20.0}) = 18.75
+        assert_eq!(
+            result,
+            json!({
+                "ALICE": {
+                    "todos": 18.75,
+                    "2026-1": 17.5,
+                    "2026-2": 20.0
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn average_time_per_doctor_resets_each_day_and_filters_excluded_or_invalid_rows() {
+        let df = df!(
+            "ifrocompetencia" => [
+                "2026-3", "2026-3",
+                "2026-3", "2026-3",
+                "2026-3", "2026-3",
+                "2026-3"
+            ],
+            "ifrodataatendimento" => [
+                "2026-03-01", "2026-03-01",
+                "2026-03-01", "2026-03-01",
+                "2026-03-02", "2026-03-02",
+                "2026-03-01"
+            ],
+            "ifrohoraatendimento" => [
+                "10:00:00", "10:30:00",
+                "08:00:00", "08:20:00",
+                "00:00:00", "00:30:00",
+                "invalid"
+            ],
+            "ifroprofissionalcbods" => [
+                "MEDICO CIRURGIAO GERAL", "MEDICO CIRURGIAO GERAL",
+                "MEDICO CLINICO", "MEDICO CLINICO",
+                "MEDICO CLINICO", "MEDICO CLINICO",
+                "MEDICO CLINICO"
+            ],
+            "ifroprofissionalid" => [
+                "200", "200",
+                "300", "300",
+                "400", "400",
+                "500"
+            ],
+            "ifroprofissionalnome" => [
+                "BOB", "BOB",
+                "GILLIARD", "GILLIARD",
+                "DAVE", "DAVE",
+                "CAROL"
+            ],
+            "ifrotabelanome" => [
+                "ConsultaMedica", "ConsultaMedica",
+                "ConsultaMedica", "ConsultaMedica",
+                "ConsultaMedica", "ConsultaMedica",
+                "ConsultaMedica"
+            ]
+        )
+        .unwrap();
+        let df_non_doctors = df!(
+            "ifroprofissionalnome" => ["GILLIARD"]
+        )
+        .unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        // BOB dia 2026-03-01: par (10:00→10:30)=30 → diária = 30.0 → "2026-3" e "todos" = 30.0
+        // DAVE dia 2026-03-02: par (00:00→00:30)=30 → diária = 30.0 → "2026-3" e "todos" = 30.0
+        // GILLIARD em non_doctors / CAROL hora inválida → ambos descartados.
+        assert_eq!(
+            result,
+            json!({
+                "BOB": {
+                    "todos": 30.0,
+                    "2026-3": 30.0
+                },
+                "DAVE": {
+                    "todos": 30.0,
+                    "2026-3": 30.0
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn average_time_per_doctor_aggregates_each_day_with_equal_weight() {
+        // Dia A: 3 atendimentos, pares 10 e 20 → diária = 15
+        // Dia B: 2 atendimentos, par 60 → diária = 60
+        // Mensal "2026-4" = mean({15, 60}) = 37.5  (NÃO 30, que seria pool de pares)
+        let df = df!(
+            "ifrocompetencia" => ["2026-4", "2026-4", "2026-4", "2026-4", "2026-4"],
+            "ifrodataatendimento" => [
+                "2026-04-10", "2026-04-10", "2026-04-10",
+                "2026-04-11", "2026-04-11"
+            ],
+            "ifrohoraatendimento" => [
+                "08:00:00", "08:10:00", "08:30:00",
+                "09:00:00", "10:00:00"
+            ],
+            "ifroprofissionalcbods" => [
+                "MEDICO CLINICO", "MEDICO CLINICO", "MEDICO CLINICO",
+                "MEDICO CLINICO", "MEDICO CLINICO"
+            ],
+            "ifroprofissionalid" => ["999", "999", "999", "999", "999"],
+            "ifroprofissionalnome" => ["Dr. JOAO", "Dr. JOAO", "Dr. JOAO", "Dr. JOAO", "Dr. JOAO"],
+            "ifrotabelanome" => [
+                "ConsultaMedica", "ConsultaMedica", "ConsultaMedica",
+                "ConsultaMedica", "ConsultaMedica"
+            ]
+        )
+        .unwrap();
+        let df_non_doctors = df!("ifroprofissionalnome" => Vec::<String>::new()).unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "Dr. JOAO": {
+                    "todos": 37.5,
+                    "2026-4": 37.5
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn average_time_per_doctor_drops_outlier_pairs_above_60_minutes_keeps_60_exactly() {
+        // Dia: 08:00, 09:00 (par 60min, mantém), 10:30 (par 90min, descarta), 11:00 (par 30min, mantém).
+        // Pares válidos: {60, 30} → diária = 45.0.
+        let df = df!(
+            "ifrocompetencia" => ["2026-5", "2026-5", "2026-5", "2026-5"],
+            "ifrodataatendimento" => [
+                "2026-05-01", "2026-05-01", "2026-05-01", "2026-05-01"
+            ],
+            "ifrohoraatendimento" => ["08:00:00", "09:00:00", "10:30:00", "11:00:00"],
+            "ifroprofissionalcbods" => [
+                "MEDICO CLINICO", "MEDICO CLINICO", "MEDICO CLINICO", "MEDICO CLINICO"
+            ],
+            "ifroprofissionalid" => ["111", "111", "111", "111"],
+            "ifroprofissionalnome" => ["EDU", "EDU", "EDU", "EDU"],
+            "ifrotabelanome" => [
+                "ConsultaMedica", "ConsultaMedica", "ConsultaMedica", "ConsultaMedica"
+            ]
+        )
+        .unwrap();
+        let df_non_doctors = df!("ifroprofissionalnome" => Vec::<String>::new()).unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "EDU": {
+                    "todos": 45.0,
+                    "2026-5": 45.0
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn average_time_per_doctor_deduplicates_same_id_and_timestamp() {
+        // 3 linhas: 08:00, 08:00 (duplicata exata), 08:20.
+        // Após dedup → 2 records distintos → 1 par 20min → diária 20.0.
+        let df = df!(
+            "ifrocompetencia" => ["2026-6", "2026-6", "2026-6"],
+            "ifrodataatendimento" => ["2026-06-01", "2026-06-01", "2026-06-01"],
+            "ifrohoraatendimento" => ["08:00:00", "08:00:00", "08:20:00"],
+            "ifroprofissionalcbods" => ["MEDICO CLINICO", "MEDICO CLINICO", "MEDICO CLINICO"],
+            "ifroprofissionalid" => ["222", "222", "222"],
+            "ifroprofissionalnome" => ["FRAN", "FRAN", "FRAN"],
+            "ifrotabelanome" => ["ConsultaMedica", "ConsultaMedica", "ConsultaMedica"]
+        )
+        .unwrap();
+        let df_non_doctors = df!("ifroprofissionalnome" => Vec::<String>::new()).unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "FRAN": {
+                    "todos": 20.0,
+                    "2026-6": 20.0
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn average_time_per_doctor_picks_most_frequent_name_per_id_no_collision() {
+        // Mesmo ID="777" com nomes ["Dr. JOAO","Dr. Joao","Dr. JOAO","Dr. JOAO"].
+        // Canônico = "Dr. JOAO" (3 ocorrências). 4 atendimentos, todos no mesmo dia.
+        // Pares: 10, 10, 10 → diária 10.0.
+        let df = df!(
+            "ifrocompetencia" => ["2026-7", "2026-7", "2026-7", "2026-7"],
+            "ifrodataatendimento" => [
+                "2026-07-01", "2026-07-01", "2026-07-01", "2026-07-01"
+            ],
+            "ifrohoraatendimento" => ["08:00:00", "08:10:00", "08:20:00", "08:30:00"],
+            "ifroprofissionalcbods" => [
+                "MEDICO CLINICO", "MEDICO CLINICO", "MEDICO CLINICO", "MEDICO CLINICO"
+            ],
+            "ifroprofissionalid" => ["777", "777", "777", "777"],
+            "ifroprofissionalnome" => ["Dr. JOAO", "Dr. Joao", "Dr. JOAO", "Dr. JOAO"],
+            "ifrotabelanome" => [
+                "ConsultaMedica", "ConsultaMedica", "ConsultaMedica", "ConsultaMedica"
+            ]
+        )
+        .unwrap();
+        let df_non_doctors = df!("ifroprofissionalnome" => Vec::<String>::new()).unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "Dr. JOAO": {
+                    "todos": 10.0,
+                    "2026-7": 10.0
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn average_time_per_doctor_distinguishes_distinct_ids_with_same_canonical_name() {
+        // Dois IDs distintos ("100" e "200") cujos nomes resolvem ambos para "Dr. JOAO".
+        // Cada um deve aparecer com sua média separada e sufixo (#id).
+        let df = df!(
+            "ifrocompetencia" => ["2026-8", "2026-8", "2026-8", "2026-8"],
+            "ifrodataatendimento" => [
+                "2026-08-01", "2026-08-01",
+                "2026-08-02", "2026-08-02"
+            ],
+            "ifrohoraatendimento" => ["08:00:00", "08:10:00", "09:00:00", "09:30:00"],
+            "ifroprofissionalcbods" => [
+                "MEDICO CLINICO", "MEDICO CLINICO",
+                "MEDICO CLINICO", "MEDICO CLINICO"
+            ],
+            "ifroprofissionalid" => ["100", "100", "200", "200"],
+            "ifroprofissionalnome" => ["Dr. JOAO", "Dr. JOAO", "Dr. JOAO", "Dr. JOAO"],
+            "ifrotabelanome" => [
+                "ConsultaMedica", "ConsultaMedica",
+                "ConsultaMedica", "ConsultaMedica"
+            ]
+        )
+        .unwrap();
+        let df_non_doctors = df!("ifroprofissionalnome" => Vec::<String>::new()).unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "Dr. JOAO (#100)": { "todos": 10.0, "2026-8": 10.0 },
+                "Dr. JOAO (#200)": { "todos": 30.0, "2026-8": 30.0 }
+            })
+        );
+    }
+
+    #[test]
+    fn average_time_per_doctor_drops_rows_with_empty_doctor_id() {
+        // Linha com ID vazio é descartada e não influencia o resultado.
+        // KIM tem 2 atendimentos válidos com ID; uma 3ª linha sem ID é ignorada.
+        let df = df!(
+            "ifrocompetencia" => ["2026-9", "2026-9", "2026-9"],
+            "ifrodataatendimento" => ["2026-09-01", "2026-09-01", "2026-09-01"],
+            "ifrohoraatendimento" => ["08:00:00", "08:30:00", "09:00:00"],
+            "ifroprofissionalcbods" => ["MEDICO CLINICO", "MEDICO CLINICO", "MEDICO CLINICO"],
+            "ifroprofissionalid" => ["555", "555", ""],
+            "ifroprofissionalnome" => ["KIM", "KIM", "KIM"],
+            "ifrotabelanome" => ["ConsultaMedica", "ConsultaMedica", "ConsultaMedica"]
+        )
+        .unwrap();
+        let df_non_doctors = df!("ifroprofissionalnome" => Vec::<String>::new()).unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        // Só os 2 records com ID válido entram → 1 par 30min → diária 30.0.
+        // (Se a linha sem ID entrasse, haveria um 2º par e a diária ficaria diferente.)
+        assert_eq!(
+            result,
+            json!({
+                "KIM": {
+                    "todos": 30.0,
+                    "2026-9": 30.0
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn average_time_per_doctor_omits_doctor_with_no_valid_pair() {
+        // Médico LEO tem só 1 atendimento (nenhum par possível) → não aparece no JSON.
+        // ZOE tem 2 atendimentos do mesmo dia → entra com diária 15.0.
+        let df = df!(
+            "ifrocompetencia" => ["2026-10", "2026-10", "2026-10"],
+            "ifrodataatendimento" => ["2026-10-01", "2026-10-01", "2026-10-01"],
+            "ifrohoraatendimento" => ["08:00:00", "08:00:00", "08:15:00"],
+            "ifroprofissionalcbods" => ["MEDICO CLINICO", "MEDICO CLINICO", "MEDICO CLINICO"],
+            "ifroprofissionalid" => ["888", "999", "999"],
+            "ifroprofissionalnome" => ["LEO", "ZOE", "ZOE"],
+            "ifrotabelanome" => ["ConsultaMedica", "ConsultaMedica", "ConsultaMedica"]
+        )
+        .unwrap();
+        let df_non_doctors = df!("ifroprofissionalnome" => Vec::<String>::new()).unwrap();
+
+        let result = block_on(
+            DataProcessingForGraphPlotting
+                .create_dict_to_average_time_in_minutes_per_doctor(&df, &df_non_doctors),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            json!({
+                "ZOE": {
+                    "todos": 15.0,
+                    "2026-10": 15.0
                 }
             })
         );

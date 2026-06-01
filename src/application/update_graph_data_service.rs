@@ -285,6 +285,7 @@ impl UpdateGraphDataService {
                         "column",
                         json!([
                             "ifrocompetencia",
+                            "ifrodataatendimento",
                             "ifrohoraatendimento",
                             "ifroprofissionalid",
                             "ifroprofissionalcbods",
@@ -556,7 +557,7 @@ impl UpdateGraphDataService {
                                 Some(&non_doctors),
                                 unidade_id,
                             )
-                                .await?
+                            .await?
                         }
                         "number_of_visits_per_nurse" => {
                             let non_nurse = self.get_additional_data("non_nurse").await?;
@@ -566,7 +567,7 @@ impl UpdateGraphDataService {
                                 Some(&non_nurse),
                                 unidade_id,
                             )
-                                .await?
+                            .await?
                         }
                         _ => {
                             self.call_processing_method(method_name, &df, None, unidade_id)
@@ -724,8 +725,7 @@ impl UpdateGraphDataService {
             ) => self
                 .data_processing
                 .create_dict_to_heat_map_with_the_number_of_medical_appointments_by_neighborhood(
-                    main_df,
-                    unidade_id,
+                    main_df, unidade_id,
                 )
                 .await
                 .map_err(|e| {
