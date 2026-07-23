@@ -4,6 +4,7 @@ import os
 import io
 from ..models.model import load_model, load_model_breast_cancer_with_fatRCNN, load_model_tuberculosis, load_model_osteoporosis
 from ..utils.common.load_file import load_file_to_dictionary
+from ..utils.common.image_loader import load_image_from_bytes
 from fastapi import HTTPException
 import cv2
 import torch
@@ -23,7 +24,7 @@ class PredictionService:
 
     async def predict_image(self, image_data: bytes):
         try:
-            image = Image.open(io.BytesIO(image_data))
+            image = load_image_from_bytes(image_data)
 
             if not image:
                 raise HTTPException(status_code=400, detail="An error occurred while processing the image. Please check that the image is in the correct format and try again.")
@@ -50,8 +51,8 @@ class PredictionService:
 
     async def detect_breast_cancer_with_fastRCNN(self, image_data: bytes):
         try:
-            image = Image.open(io.BytesIO(image_data)).convert('RGB')
-            
+            image = load_image_from_bytes(image_data).convert('RGB')
+
             # Normaliza o tamanho da imagem
             max_dimension = 1024  # Dimensão máxima permitida
             width, height = image.size
@@ -234,7 +235,7 @@ class PredictionService:
         """
         try:
             
-            image = Image.open(io.BytesIO(image_data)).convert("RGB")
+            image = load_image_from_bytes(image_data).convert("RGB")
 
             transform = T.Compose([
                 T.Resize((224,224)),
@@ -285,7 +286,7 @@ class PredictionService:
         try:
             
             # Carrega a imagem a partir dos bytes
-            image = Image.open(io.BytesIO(image_data)).convert("RGB")
+            image = load_image_from_bytes(image_data).convert("RGB")
 
             # Define as transformações para pre-processamento
             transform = T.Compose([
